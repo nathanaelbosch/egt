@@ -7,6 +7,7 @@ import tqdm
 
 
 _range = np.arange(-3, 3, 0.001)
+np.random.seed(0)
 
 ###############################################################################
 # Parameters
@@ -15,7 +16,7 @@ _stepsize = 0.01            # Discretization of the strategies
 alpha = 2                   # Parameter of J
 beta = 1                    # Reweighting paramenter
 gamma = 1.0                 # Additional update paremeter
-delta_t = 0.05              # Stepsize at each iteration
+delta_t = 0.1              # Stepsize at each iteration
 total_steps = 20000
 # max_iterations = 40000
 N = 4
@@ -41,13 +42,13 @@ sigma = sigma / np.sum(sigma)
 
 # Now with more than two points
 population = []
-for i in range(10):
-    population.append([np.random.uniform(-2, 2), sigma])
-# population.append([0, sigma])
-# population.append([1, sigma])
-# population.append([-1, sigma])
+# for i in range(10):
+#     population.append([np.random.uniform(-2, 2), sigma])
+population.append([0, sigma])
+population.append([1, sigma])
+population.append([-1, sigma])
 # population.append([2, sigma])
-# population.append([5, sigma])
+population.append([5, sigma])
 
 history = []
 history.append([])
@@ -65,10 +66,17 @@ def J(x, u, x2):
         -((u - positive(np.tanh(3*(f(x) - f(x2)))) * (x2 - x))**2) /
         ((x-x2) ** alpha + (f(x) - f(x2)) ** alpha))
 # My J
-def J(x, u, x2):
-    return np.exp(
-        -((u - positive(np.tanh(3*(f(x) - f(x2)))) * (x2 - x))**2) /
-        ((x-x2) ** alpha + (f(x) - f(x2)) ** alpha))
+# def J2(x, u, x2):
+#     if x2-x > 1:
+#         walking_dir = 1
+#     elif x2-x < -1:
+#         walking_dir = -1
+#     else:
+#         walking_dir = x2-x
+#     return np.exp(
+#         -((u - positive(np.tanh(3*(f(x) - f(x2)))) * walking_dir)**2) /
+#         ((x-x2) ** alpha + (f(x) - f(x2)) ** alpha))
+
 
 
 ###############################################################################
