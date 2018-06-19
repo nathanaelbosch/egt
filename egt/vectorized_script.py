@@ -14,45 +14,41 @@ np.random.seed(0)
 ###############################################################################
 # Parameters
 ###############################################################################
-_range = np.arange(-3, 3, 0.001)
-_stepsize = 0.001           # Discretization of the strategies
+_plot_range = np.arange(-3, 3, 0.001)
+_strategy_resolution = 0.001           # Discretization of the strategies
 alpha = 2                   # Parameter of J
 beta = 1                    # Reweighting paramenter
 gamma = 1                   # Additional update paremeter
 delta_t = 0.1              # Stepsize at each iteration
 total_steps = 60*60
 # N = 4
-starting_locations = [4, 0, 1, -1]
+starting_locations = [3, 0, 1, -1]
+# starting_locations = [np.random.uniform(-2, 2) for i in range(N)]
 
 
 ###############################################################################
-# Setup: We want to minimize the following function with EGT
+# Setup
 ###############################################################################
+# We want to minimize the following function with EGT
 def f(x):
     return x ** 2 + 0.5 * np.sin(30*x)
-# To plot:
-# plt.plot(_range, f(_range))
 
 
 # All available strategies:
-U = np.arange(-1+_stepsize, 1-_stepsize, _stepsize)
+U = np.arange(-1, 1, _strategy_resolution)
 
 # Initial mixed strategy - continuous:
 sigma = np.exp(-1/(1-(U**2)))
 sigma = sigma / np.sum(sigma)
 
-# Now with more than two points
-# starting_locations = [0, 1, -1, 3]
-# starting_locations = [np.random.uniform(-2, 2) for i in range(N)]
+# Initial population: Now as a matrix. First col location, rest mixed strategy
 population = np.concatenate(
     (np.array(starting_locations).reshape((len(starting_locations), 1)),
      np.tile(sigma, (len(starting_locations), 1))),
     axis=1)
 N = population.shape[0]
-# Population is now a matrix
-# locations in the first col and mixed strategy in the others
 
-# To keep track of the whole process
+# Object to save the whole process
 history = []
 history.append(population)
 
@@ -69,6 +65,7 @@ def J_original(x, u, x2):
 # My playground now:
 def J(x, u, x2):
     out = J_original(x, u, x2)
+    out *= np.exp(-beta * f(x2))
     # out = out * delta
     return out
 
@@ -91,12 +88,10 @@ def J_vectorized(points):
     walk_dirs = np.tile(points, reps=(N, 1)) - np.tile(points, reps=(N, 1)).T
     walk_dirs_adj = f_diffs_positive * walk_dirs
     variance = walk_dirs ** alpha + f_diffs ** alpha
-    # Add diagonal entries to variance to prevent division by zero
-    # variance += np.diagflat([1]*N)
     out = np.exp(
         -1 * ((U.reshape(1, 1, len(U)) - walk_dirs_adj[:, :, None])**2) /
         variance[:, :, None])
-    # out *= np.exp(-beta * f(points))[None, :, None]
+    out *= np.exp(-beta * f(points))[None, :, None]
     return out
 
 
@@ -131,16 +126,11 @@ for i in sim_bar:
         tot_J - np.sum(
             tot_J * population[:, 1:][:, None, :], axis=2)[:, :, None],
         axis=1)
-    # if np.any(delta < 0):
-    #     delta -= delta.min(axis=1)[:, None] + 1e-16
     next_pop[:, 1:] *= (1 + gamma * delta_t * delta)
     next_pop[:, 1:] /= next_pop[:, 1:].sum(axis=1)[:, None]
-    # while np.all(next_pop[:, 1:].sum(axis=1) != 1):
-    #     # print('Need some rescale to sum to 1')
 
     # Location updates
     for j in range(len(current_pop)):
-        # print(next_pop[j, 1:].sum())
         next_pop[j, 0] += delta_t*np.random.choice(U, p=next_pop[j, 1:])
 
     history.append(next_pop)
@@ -148,7 +138,9 @@ for i in sim_bar:
     # Break condition for early stopping
     _locs = history[-1][:, 0]
     max_dist = max(_locs) - min(_locs)
-    if max_dist < 0.01:
+    probability_to_stand = current_pop[:, 1000]
+    # if max_dist < 0.01:
+    if max_dist < 0.01 and probability_to_stand.sum() > N-(1e-5):
         print('Early stopping thanks to our rule!')
         break
 
@@ -158,14 +150,14 @@ for i in sim_bar:
 ###############################################################################
 # First set up the figure, the axis, and the plot element we want to animate
 fig = plt.figure()
-_xmin, _xmax = _range.min(), _range.max()
-_ymin, _ymax = f(_range).min(), f(_range).max()
+_xmin, _xmax = _plot_range.min(), _plot_range.max()
+_ymin, _ymax = f(_plot_range).min(), f(_plot_range).max()
 ax = plt.axes(
     xlim=(_xmin, _xmax),
     ylim=(_ymin, _ymax))
 dots, = ax.plot([], [], 'ro')
 base_function, = ax.plot([], [], lw=2)
-base_function.set_data(_range, f(_range))
+base_function.set_data(_plot_range, f(_plot_range))
 line2, = ax.plot([], [])
 
 
