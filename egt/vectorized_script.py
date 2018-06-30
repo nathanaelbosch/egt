@@ -11,9 +11,6 @@ import argparse
 # tqdm.monitor_interval = 0
 
 import egt.visualisation as vis
-seed = random.randint(0, 2**32-1)
-print(f'Seed used for this simulation: {seed}')
-np.random.seed(0)
 
 
 ###############################################################################
