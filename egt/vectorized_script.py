@@ -32,13 +32,13 @@ gamma = 0.3
 delta_t = 0.1
 total_steps = 2*60*60
 # Multiple strategy update rounds per location update
-s_rounds = 1
+s_rounds = 2
 
 # Szenario 1: Minimum inside
-# starting_locations = [-1, 0, 1, 3, 5]
+starting_locations = [-1, 0, 1, 3, 5]
 
 # Szenario 2: Minimum outside
-starting_locations = [1, 2, 3, 4]
+# starting_locations = [1, 2, 3, 4]
 
 # starting_locations = [-0.1, 0.3, 0.3, 0.3]
 
@@ -49,8 +49,11 @@ starting_locations = [1, 2, 3, 4]
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-s', '--save-animation', action='store_true',
+        '--save', action='store_true',
         help='Save the animation')
+    parser.add_argument(
+        '-s', '--seed', type=int,
+        help='Random seed for numpy')
     return parser.parse_args()
 
 
@@ -145,6 +148,13 @@ def main():
     Separates setup and computation, enables easier testing
     """
     args = parse_args()
+    if not args.seed:
+        seed = random.randint(0, 2**32-1)
+        print(f'Seed used for this simulation: {seed}')
+        np.random.seed(seed)
+    else:
+        print(f'Seed used for this simulation: {args.seed}')
+        np.random.seed(args.seed)
 
     print('Start')
     sim_bar = tqdm.tqdm(range(total_steps))
@@ -184,7 +194,7 @@ def main():
     anim = vis.full_visualization(history, f, U)
     plt.show()
 
-    if args.save_animation:
+    if args.save:
         # Need to redo the animation as closing the plot destroys it
         print('Saving animation, this might take a while')
         anim = vis.full_visualization(history, f, U)
