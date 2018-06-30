@@ -6,10 +6,14 @@ Difference to first script: Optimize code, make it run faster!
 import numpy as np
 import matplotlib.pyplot as plt
 import tqdm
+import random
+import argparse
 # tqdm.monitor_interval = 0
 
 import egt.visualisation as vis
-# np.random.seed(0)
+seed = random.randint(0, 2**32-1)
+print(f'Seed used for this simulation: {seed}')
+np.random.seed(0)
 
 
 ###############################################################################
@@ -28,15 +32,26 @@ gamma = 0.3
 delta_t = 0.1
 total_steps = 2*60*60
 # Multiple strategy update rounds per location update
-s_rounds = 2
+s_rounds = 1
 
 # Szenario 1: Minimum inside
-starting_locations = [-1, 0, 1, 3, 5]
+# starting_locations = [-1, 0, 1, 3, 5]
 
 # Szenario 2: Minimum outside
-# starting_locations = [1, 2, 3, 4]
+starting_locations = [1, 2, 3, 4]
 
 # starting_locations = [-0.1, 0.3, 0.3, 0.3]
+
+
+###############################################################################
+# Argparse
+###############################################################################
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-s', '--save-animation', action='store_true',
+        help='Save the animation')
+    return parser.parse_args()
 
 
 ###############################################################################
@@ -129,6 +144,8 @@ def main():
 
     Separates setup and computation, enables easier testing
     """
+    args = parse_args()
+
     print('Start')
     sim_bar = tqdm.tqdm(range(total_steps))
     sim_bar.set_description('Simulation')
@@ -160,12 +177,18 @@ def main():
         max_dist = max(_locs) - min(_locs)
         probability_to_stand = current_pop[:, 1000]
         # if max_dist < 0.01:
-        if max_dist < 0.01 and probability_to_stand.sum() > N-(1e-5):
+        if max_dist < 0.05 and probability_to_stand.sum() > N-(1e-5):
             print('Early stopping thanks to our rule!')
             break
 
     anim = vis.full_visualization(history, f, U)
     plt.show()
+
+    if args.save_animation:
+        # Need to redo the animation as closing the plot destroys it
+        print('Saving animation, this might take a while')
+        anim = vis.full_visualization(history, f, U)
+        anim.save(f'examples/{seed}.mp4', fps=60)
 
 
 if __name__ == '__main__':
