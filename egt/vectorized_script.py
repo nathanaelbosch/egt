@@ -27,12 +27,14 @@ gamma = 0.3
 # Stepsize at each iteration
 delta_t = 0.1
 total_steps = 2*60*60
+# Multiple strategy update rounds per location update
+s_rounds = 2
 
 # Szenario 1: Minimum inside
-# starting_locations = [-1, 0, 1, 3]
+starting_locations = [-1, 0, 1, 3, 5]
 
 # Szenario 2: Minimum outside
-starting_locations = [1, 2, 3, 4]
+# starting_locations = [1, 2, 3, 4]
 
 # starting_locations = [-0.1, 0.3, 0.3, 0.3]
 
@@ -82,8 +84,8 @@ def J(x, u, x2):
     Used to control the vectorized function below
     """
     out = J_original(x, u, x2)
-    out *= np.exp(-beta * f(x2))
-    out *= gamma
+    out *= np.exp(beta * (f(x)-f(x2)))
+    # out *= gamma
     return out
 
 
@@ -100,7 +102,7 @@ def J_vectorized(points):
     N = len(points)
     f_vals = f(points)
     f_diffs = np.tile(f_vals, reps=(N, 1)).T - np.tile(f_vals, reps=(N, 1))
-    f_diffs_tanh = np.tanh(10*f_diffs)
+    f_diffs_tanh = np.tanh(3*f_diffs)
     f_diffs_tanh_positive = np.where(
         f_diffs_tanh > 0,
         f_diffs_tanh,
@@ -135,20 +137,21 @@ def main():
         next_pop = current_pop.copy()
 
         # Strategy updates
-        tot_J = J_vectorized(current_pop[:, 0])
-        sum_i = tot_J.sum(axis=1)
-        mean_outcome = (sum_i * population[:, 1:]).sum(axis=1)
-        delta = sum_i - mean_outcome[:, None]
-        delta = np.sum(
-            tot_J - np.sum(
-                tot_J * population[:, 1:][:, None, :], axis=2)[:, :, None],
-            axis=1)
-        next_pop[:, 1:] *= (1 + gamma * delta_t * delta)
-        next_pop[:, 1:] /= next_pop[:, 1:].sum(axis=1)[:, None]
+        for s in range(s_rounds):
+            tot_J = J_vectorized(next_pop[:, 0])
+            sum_i = tot_J.sum(axis=1)
+            mean_outcome = (sum_i * population[:, 1:]).sum(axis=1)
+            delta = sum_i - mean_outcome[:, None]
+            delta = np.sum(
+                tot_J - np.sum(
+                    tot_J * population[:, 1:][:, None, :], axis=2)[:, :, None],
+                axis=1)
+            next_pop[:, 1:] *= (1 + gamma * delta_t * delta)
+            next_pop[:, 1:] /= next_pop[:, 1:].sum(axis=1)[:, None]
 
-        # Location updates
-        for j in range(len(current_pop)):
-            next_pop[j, 0] += delta_t*np.random.choice(U, p=next_pop[j, 1:])
+            # Location updates
+            for j in range(len(next_pop)):
+                next_pop[j, 0] += delta_t*np.random.choice(U, p=next_pop[j, 1:])
 
         history.append(next_pop)
 
