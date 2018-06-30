@@ -66,8 +66,7 @@ def full_visualization(
         history,
         function,
         U,
-        plot_range=np.arange(-3, 3, 0.001),
-        strategy_plot_number=4):
+        plot_range=np.arange(-3, 3, 0.001)):
     """Animation
 
     Complete visualization of the process:
@@ -90,7 +89,7 @@ def full_visualization(
     np.matplotlib.animation.Animation
         Animation to show at the end
     """
-    colors = ['red', 'blue', 'green', 'orange']
+    colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown']
     n_points = history[0].shape[0]
     if n_points > len(colors):
         return graph_visualization(history, function, U)
@@ -98,10 +97,10 @@ def full_visualization(
     # Setup layout
     fig = plt.figure()
     gs = gridspec.GridSpec(
-        3, strategy_plot_number)
+        3, n_points)
     ax_function_graph = fig.add_subplot(gs[0:2, :])
     ax_strategies = [
-        fig.add_subplot(gs[2, i]) for i in range(strategy_plot_number)]
+        fig.add_subplot(gs[2, i]) for i in range(n_points)]
 
     # Initialize function plot
     _xmin, _xmax = plot_range.min(), plot_range.max()
