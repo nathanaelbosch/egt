@@ -19,6 +19,8 @@ import egt.visualisation as vis
 _plot_range = np.arange(-3, 3, 0.001)
 # Discretization of the strategies
 _strategy_resolution = 0.001
+# Function to minimize
+f_string = 'x**2 + 0.5*np.sin(30*x)'
 # Parameter of J
 alpha = 2
 # "Magnet"
@@ -51,6 +53,9 @@ def parse_args():
     parser.add_argument(
         '-s', '--seed', type=int,
         help='Random seed for numpy')
+    parser.add_argument(
+        '-f', '--function', type=str, default=f_string,
+        help='Function to minimize. Write as functional python code')
     return parser.parse_args()
 
 
@@ -58,8 +63,7 @@ def parse_args():
 # Setup
 ###############################################################################
 # We want to minimize the following function with EGT
-def f(x):
-    return x ** 2 + 0.5 * np.sin(30*x)
+f = eval('lambda x:' + f_string)
 
 
 # All available strategies:
@@ -147,11 +151,13 @@ def main():
     args = parse_args()
     if not args.seed:
         seed = random.randint(0, 2**32-1)
-        print(f'Seed used for this simulation: {seed}')
-        np.random.seed(seed)
     else:
-        print(f'Seed used for this simulation: {args.seed}')
-        np.random.seed(args.seed)
+        seed = args.seed
+    print(f'Seed used for this simulation: {seed}')
+    np.random.seed(seed)
+
+    print(f'Function to minimize: f(x)={args.function}')
+    f = eval('lambda x:' + args.function)
 
     print('Start')
     sim_bar = tqdm.tqdm(range(total_steps))
