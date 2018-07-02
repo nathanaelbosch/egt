@@ -6,8 +6,7 @@ from egt.vectorized_script import *
 
 
 def test_J():
-    history = create_initial_population(starting_locations)
-    population = history[-1]
+    population = create_initial_population(starting_locations)
     points = population[:, 0]
     out = J_vectorized(population[:, 0])
     old = out.copy()

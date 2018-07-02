@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import tqdm
 import random
 import argparse
+import logging
+logging.basicConfig(level=logging.INFO)
 # tqdm.monitor_interval = 0
 
 import egt.visualisation as vis
@@ -80,10 +82,7 @@ def create_initial_population(starting_locations):
          np.tile(sigma, (len(starting_locations), 1))),
         axis=1)
 
-    # Object to save the whole process
-    history = []
-    history.append(population)
-    return history
+    return population
 
 
 def positive(x):
@@ -111,7 +110,7 @@ def J(x, u, x2):
     return out
 
 
-def J_vectorized(points):
+def J_vectorized(points, f=f):
     """Idea: generate a whole NxNx#Strategies tensor with the values of J
 
     This one is actually used for computations.
@@ -155,22 +154,17 @@ def J_vectorized(points):
     return out
 
 
-def main():
-    """Computations of this script
+def simulate(initial_population, J):
+    """Simulates the game J with the given starting population
 
-    Separates setup and computation, enables easier testing
+    J is a vectorized version, such as J_vectorized
+
+    Returns the full history of locations and strategies
     """
-    args = parse_args()
-    if not args.seed:
-        seed = random.randint(0, 2**32-1)
-        print(f'Seed used for this simulation: {seed}')
-        np.random.seed(seed)
-    else:
-        print(f'Seed used for this simulation: {args.seed}')
-        np.random.seed(args.seed)
+    history = []
+    history.append(initial_population)
 
-    print('Start')
-    history = create_initial_population(starting_locations)
+    logging.info('Start simulation')
     sim_bar = tqdm.tqdm(range(total_steps))
     sim_bar.set_description('Simulation')
     for i in sim_bar:
@@ -179,7 +173,7 @@ def main():
 
         # Strategy updates
         for s in range(s_rounds):
-            tot_J = J_vectorized(next_pop[:, 0])
+            tot_J = J(next_pop[:, 0])
             sum_i = tot_J.sum(axis=1)
             mean_outcome = (sum_i * current_pop[:, 1:]).sum(axis=1)
             delta = sum_i - mean_outcome[:, None]
@@ -203,15 +197,31 @@ def main():
         probability_to_stand = current_pop[:, 1000]
         # if max_dist < 0.01:
         if max_dist < 0.05 and probability_to_stand.sum() > N-(1e-5):
-            print('Early stopping thanks to our rule!')
+            logging.info('Early stopping thanks to our rule!')
             break
+
+    return history
+
+
+def main():
+    args = parse_args()
+    if not args.seed:
+        seed = random.randint(0, 2**32-1)
+        logging.info(f'Seed used for this simulation: {seed}')
+        np.random.seed(seed)
+    else:
+        logging.info(f'Seed used for this simulation: {args.seed}')
+        np.random.seed(args.seed)
+
+    population = create_initial_population(starting_locations)
+    history = simulate(population, J_vectorized)
 
     anim = vis.full_visualization(history, f, U)
     plt.show()
 
     if args.save:
         # Need to redo the animation as closing the plot destroys it
-        print('Saving animation, this might take a while')
+        logging.info('Saving animation, this might take a while')
         anim = vis.full_visualization(history, f, U)
         anim.save(f'examples/{seed}.mp4', fps=60)
 
