@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import tqdm
 import random
 import argparse
+import logging
+logging.basicConfig(level=logging.INFO)
 # tqdm.monitor_interval = 0
 
 import egt.visualisation as vis
@@ -31,10 +33,10 @@ gamma = 0.3
 delta_t = 0.1
 total_steps = 2*60*60
 # Multiple strategy update rounds per location update
-s_rounds = 2
+s_rounds = 1
 
 # Szenario 1: Minimum inside
-starting_locations = [-1, 0, 1, 3, 5]
+starting_locations = [-1, 0, 3, 5]
 
 # Szenario 2: Minimum outside
 # starting_locations = [1, 2, 3, 4]
@@ -60,29 +62,31 @@ def parse_args():
 
 
 ###############################################################################
-# Setup
+# Setup - Universal settings that are not affected by some parameter changes
 ###############################################################################
 # We want to minimize the following function with EGT
 f = eval('lambda x:' + f_string)
 
 
+N = len(starting_locations)
+
 # All available strategies:
 U = np.arange(-1, 1, _strategy_resolution)
 
 # Initial mixed strategy - continuous:
-sigma = np.exp(-1/(1-(U**2)))
+with np.errstate(divide='ignore'):
+    sigma = np.exp(-1/(1-(U**2)))
 sigma = sigma / np.sum(sigma)
 
-# Initial population: Now as a matrix. First col location, rest mixed strategy
-population = np.concatenate(
-    (np.array(starting_locations).reshape((len(starting_locations), 1)),
-     np.tile(sigma, (len(starting_locations), 1))),
-    axis=1)
-N = population.shape[0]
 
-# Object to save the whole process
-history = []
-history.append(population)
+def create_initial_population(starting_locations):
+    # Initial population: Now as a matrix. First col location, rest mixed strategy
+    population = np.concatenate(
+        (np.array(starting_locations).reshape((len(starting_locations), 1)),
+         np.tile(sigma, (len(starting_locations), 1))),
+        axis=1)
+
+    return population
 
 
 def positive(x):
@@ -92,9 +96,11 @@ def positive(x):
 
 def J_original(x, u, x2):
     """J as described by Massimo"""
-    return np.exp(
-        -((u - positive(np.tanh(3*(f(x) - f(x2)))) * (x2 - x))**2) /
-        ((x-x2) ** alpha + (f(x) - f(x2)) ** alpha))
+    with np.errstate(divide='ignore'):
+        out = np.exp(
+            -((u - positive(np.tanh(3*(f(x) - f(x2)))) * (x2 - x))**2) /
+            ((x-x2) ** alpha + (f(x) - f(x2)) ** alpha))
+    return out
 
 
 def J(x, u, x2):
@@ -108,12 +114,11 @@ def J(x, u, x2):
     return out
 
 
-def J_vectorized(points):
+def J_vectorized(points, f=f):
     """Idea: generate a whole NxNx#Strategies tensor with the values of J
 
     This one is actually used for computations.
 
-    It is a #U x N x N tensor now
     axis=0 the point to evaluate
     axis=1 the point to compare to
     axis=2 are the strategies
@@ -121,17 +126,27 @@ def J_vectorized(points):
     N = len(points)
     f_vals = f(points)
     f_diffs = np.tile(f_vals, reps=(N, 1)).T - np.tile(f_vals, reps=(N, 1))
+
+    # # take only the ones where i!=j
+    # rows = [[i]*(N-1) for i in range(N)]
+    # cols = [[j for j in range(N) if j!=i] for i in range(N)]
+    # f_diffs = f_diffs[rows, cols]
+
+    f_diffs = f_diffs[range(N), ]
     f_diffs_tanh = np.tanh(3*f_diffs)
     f_diffs_tanh_positive = np.where(
         f_diffs_tanh > 0,
         f_diffs_tanh,
         0)
     walk_dirs = np.tile(points, reps=(N, 1)) - np.tile(points, reps=(N, 1)).T
+    # walk_dirs = walk_dirs[rows, cols]
     walk_dirs_adj = f_diffs_tanh_positive * walk_dirs
     variance = walk_dirs ** alpha + f_diffs ** alpha
-    out = np.exp(
-        -1 * ((U.reshape(1, 1, len(U)) - walk_dirs_adj[:, :, None])**2) /
-        variance[:, :, None])
+
+    with np.errstate(divide='ignore'):
+        out = np.exp(
+            -1 * ((U.reshape(1, 1, len(U)) - walk_dirs_adj[:, :, None])**2) /
+            variance[:, :, None])
 
     out *= np.exp(beta * f_diffs)[:, :, None]
 
@@ -143,23 +158,17 @@ def J_vectorized(points):
     return out
 
 
-def main():
-    """Computations of this script
+def simulate(initial_population, J):
+    """Simulates the game J with the given starting population
 
-    Separates setup and computation, enables easier testing
+    J is a vectorized version, such as J_vectorized
+
+    Returns the full history of locations and strategies
     """
-    args = parse_args()
-    if not args.seed:
-        seed = random.randint(0, 2**32-1)
-    else:
-        seed = args.seed
-    print(f'Seed used for this simulation: {seed}')
-    np.random.seed(seed)
+    history = []
+    history.append(initial_population)
 
-    print(f'Function to minimize: f(x)={args.function}')
-    f = eval('lambda x:' + args.function)
-
-    print('Start')
+    logging.info('Start simulation')
     sim_bar = tqdm.tqdm(range(total_steps))
     sim_bar.set_description('Simulation')
     for i in sim_bar:
@@ -168,20 +177,21 @@ def main():
 
         # Strategy updates
         for s in range(s_rounds):
-            tot_J = J_vectorized(next_pop[:, 0])
+            tot_J = J(next_pop[:, 0])
             sum_i = tot_J.sum(axis=1)
-            mean_outcome = (sum_i * population[:, 1:]).sum(axis=1)
+            mean_outcome = (sum_i * current_pop[:, 1:]).sum(axis=1)
             delta = sum_i - mean_outcome[:, None]
             delta = np.sum(
                 tot_J - np.sum(
-                    tot_J * population[:, 1:][:, None, :], axis=2)[:, :, None],
+                    tot_J * current_pop[:, 1:][:, None, :],
+                    axis=2)[:, :, None],
                 axis=1)
             next_pop[:, 1:] *= (1 + gamma * delta_t * delta)
-            next_pop[:, 1:] /= next_pop[:, 1:].sum(axis=1)[:, None]
+            # next_pop[:, 1:] /= next_pop[:, 1:].sum(axis=1)[:, None]
 
-            # Location updates
-            for j in range(len(next_pop)):
-                next_pop[j, 0] += delta_t*np.random.choice(U, p=next_pop[j, 1:])
+        # Location updates
+        for j in range(len(next_pop)):
+            next_pop[j, 0] += delta_t*np.random.choice(U, p=next_pop[j, 1:])
 
         history.append(next_pop)
 
@@ -191,15 +201,36 @@ def main():
         probability_to_stand = current_pop[:, 1000]
         # if max_dist < 0.01:
         if max_dist < 0.05 and probability_to_stand.sum() > N-(1e-5):
-            print('Early stopping thanks to our rule!')
+            logging.info('Early stopping thanks to our rule!')
             break
+
+    return history
+
+
+def main():
+    args = parse_args()
+    if not args.seed:
+        seed = random.randint(0, 2**32-1)
+        logging.info(f'Seed used for this simulation: {seed}')
+        np.random.seed(seed)
+    else:
+        logging.info(f'Seed used for this simulation: {args.seed}')
+        np.random.seed(args.seed)
+
+    logging.info(f'Function to minimize: f(x)={args.function}')
+    f = eval('lambda x:' + args.function)
+    def J(x):
+        return J_vectorized(x, f)
+
+    population = create_initial_population(starting_locations)
+    history = simulate(population, J)
 
     anim = vis.full_visualization(history, f, U)
     plt.show()
 
     if args.save:
         # Need to redo the animation as closing the plot destroys it
-        print('Saving animation, this might take a while')
+        logging.info('Saving animation, this might take a while')
         anim = vis.full_visualization(history, f, U)
         anim.save(f'examples/{seed}.mp4', fps=60)
 

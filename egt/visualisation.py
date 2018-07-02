@@ -5,6 +5,17 @@ from matplotlib import animation
 import matplotlib.gridspec as gridspec
 
 
+TUM_COLORS = {
+    'blue': '#005293',
+    'accent_light_blue': '#98c6ea',
+    'dark_blue': '#003359',
+    'accent_dark_blue': '#64a0c8',
+    'accent_ivory': '#dad7cb',
+    'accent_orange': '#e37222',
+    'accent_green': '#a2ad00'
+}
+
+
 def graph_visualization(
         history,
         function,
@@ -115,7 +126,8 @@ def full_visualization(
             color=colors[i],
             marker='o')
         dotplots.append(dots)
-    base_function, = ax_function_graph.plot([], [], lw=2)
+    base_function, = ax_function_graph.plot(
+        [], [], lw=2, color=TUM_COLORS['blue'])
     base_function.set_data(plot_range, function(plot_range))
 
     # Initialize strategy plots
@@ -153,3 +165,57 @@ def full_visualization(
                                    frames=len(history), interval=1, blit=False,
                                    repeat=False)
     return anim
+
+
+def plot_2d(
+        f,
+        ax=None,
+        _plot_range=np.arange(-3, 3, 0.1),
+        type='wireframe',
+        alpha=30):
+    M = len(_plot_range)
+    X = np.tile(_plot_range, (M, 1))
+    Y = X.T
+    grid = np.stack((X.flatten(), Y.flatten()), axis=1)
+    Z = f(grid).reshape(M, M)
+
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
+    transparency_suffix = hex(int(alpha/100*255))[2:]
+    assert len(transparency_suffix) == 2
+    if type=='wireframe':
+        ax.plot_wireframe(
+            X, Y, Z,
+            colors=TUM_COLORS['blue']+transparency_suffix)
+    elif type=='trisurf':
+        ax.plot_trisurf(
+            X.flatten(),
+            Y.flatten(),
+            Z.flatten(),
+            linewidth=0.2,
+            antialiased=True,
+            color=TUM_COLORS['blue']+transparency_suffix)
+
+    return ax
+
+
+def plot_points_2d(f, points, ax=None, **kwargs):
+    """Scatter Plot of 2d points
+
+    kwargs will be passed directly to ax.scatter
+    """
+    kwargs.setdefault('s', 100)
+    kwargs.setdefault('c', TUM_COLORS['accent_orange'])
+    kwargs.setdefault('depthshade', False)
+
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
+    ax.scatter(
+        points[:, 0], points[:, 1], f(points),
+        **kwargs)
+
+    return ax
