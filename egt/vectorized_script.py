@@ -22,18 +22,18 @@ _plot_range = np.arange(-3, 3, 0.001)
 # Discretization of the strategies
 _strategy_resolution = 0.001
 # Function to minimize
-f_string = 'x**2 + 0.5*np.sin(30*x)'
+F_STRING = 'x**2 + 0.5*np.sin(30*x)'
 # Parameter of J
-alpha = 2
+ALPHA = 2
 # "Magnet"
-beta = 0.1
+BETA = 0.1
 # J rescale parameter
-gamma = 0.3
+GAMMA = 1
 # Stepsize at each iteration
-delta_t = 0.1
-total_steps = 2*60*60
+DELTA_T = 0.1
+TOTAL_STEPS = 2*60*60
 # Multiple strategy update rounds per location update
-s_rounds = 1
+S_ROUNDS = 1
 
 # Szenario 1: Minimum inside
 starting_locations = [-1, 0, 3, 5]
@@ -65,7 +65,7 @@ def parse_args():
 # Setup - Universal settings that are not affected by some parameter changes
 ###############################################################################
 # We want to minimize the following function with EGT
-f = eval('lambda x:' + f_string)
+F = eval('lambda x:' + F_STRING)
 
 
 N = len(starting_locations)
@@ -94,8 +94,10 @@ def positive(x):
     return (np.abs(x) + x)/2
 
 
-def J_original(x, u, x2):
+def J_original(x, u, x2, **kwargs):
     """J as described by Massimo"""
+    alpha = kwargs.get('alpha', ALPHA)
+    f = kwargs.get('f', F)
     with np.errstate(divide='ignore'):
         out = np.exp(
             -((u - positive(np.tanh(3*(f(x) - f(x2)))) * (x2 - x))**2) /
@@ -103,18 +105,20 @@ def J_original(x, u, x2):
     return out
 
 
-def J(x, u, x2):
+def J(x, u, x2, **kwargs):
     """Game description - not vectorized
 
     Used to control the vectorized function below
     """
-    out = J_original(x, u, x2)
+    beta = kwargs.get('beta', BETA)
+    f = kwargs.get('f', F)
+    out = J_original(x, u, x2, **kwargs)
     out *= np.exp(beta * (f(x)-f(x2)))
     # out *= gamma
     return out
 
 
-def J_vectorized(points, f=f):
+def J_vectorized(points, **kwargs):
     """Idea: generate a whole NxNx#Strategies tensor with the values of J
 
     This one is actually used for computations.
@@ -123,6 +127,10 @@ def J_vectorized(points, f=f):
     axis=1 the point to compare to
     axis=2 are the strategies
     """
+    f = kwargs.get('f', F)
+    alpha = kwargs.get('alpha', ALPHA)
+    beta = kwargs.get('beta', BETA)
+
     N = len(points)
     f_vals = f(points)
     f_diffs = np.tile(f_vals, reps=(N, 1)).T - np.tile(f_vals, reps=(N, 1))
@@ -158,18 +166,23 @@ def J_vectorized(points, f=f):
     return out
 
 
-def simulate(initial_population, J):
+def simulate(initial_population, J, **kwargs):
     """Simulates the game J with the given starting population
 
     J is a vectorized version, such as J_vectorized
 
     Returns the full history of locations and strategies
     """
+    s_rounds = kwargs.get('s_rounds', S_ROUNDS)
+    total_steps = kwargs.get('total_steps', TOTAL_STEPS)
+    gamma = kwargs.get('gamma', GAMMA)
+    delta_t = kwargs.get('delta_t', DELTA_T)
+
     history = []
     history.append(initial_population)
 
     logging.info('Start simulation')
-    sim_bar = tqdm.tqdm(range(total_steps))
+    sim_bar = tqdm.trange(total_steps)
     sim_bar.set_description('Simulation')
     for i in sim_bar:
         current_pop = history[-1]
@@ -177,7 +190,7 @@ def simulate(initial_population, J):
 
         # Strategy updates
         for s in range(s_rounds):
-            tot_J = J(next_pop[:, 0])
+            tot_J = J(next_pop[:, 0], **kwargs)
             sum_i = tot_J.sum(axis=1)
             mean_outcome = (sum_i * current_pop[:, 1:]).sum(axis=1)
             delta = sum_i - mean_outcome[:, None]
@@ -198,11 +211,10 @@ def simulate(initial_population, J):
         # Break condition for early stopping
         _locs = history[-1][:, 0]
         max_dist = max(_locs) - min(_locs)
-        probability_to_stand = current_pop[:, 1000]
-        # if max_dist < 0.01:
-        if max_dist < 0.05 and probability_to_stand.sum() > N-(1e-5):
-            logging.info('Early stopping thanks to our rule!')
-            break
+        probability_to_stand = current_pop[:, 1+len(U)//2]
+        # if max_dist < 1e-2 and probability_to_stand.max() > 1 - 1e-15:
+        #     logging.info('Early stopping thanks to our rule!')
+        #     break
 
     return history
 
