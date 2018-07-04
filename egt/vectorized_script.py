@@ -56,7 +56,7 @@ def parse_args():
         '-s', '--seed', type=int,
         help='Random seed for numpy')
     parser.add_argument(
-        '-f', '--function', type=str, default=f_string,
+        '-f', '--function', type=str, default=F_STRING,
         help='Function to minimize. Write as functional python code')
     return parser.parse_args()
 
@@ -231,11 +231,9 @@ def main():
 
     logging.info(f'Function to minimize: f(x)={args.function}')
     f = eval('lambda x:' + args.function)
-    def J(x):
-        return J_vectorized(x, f)
 
     population = create_initial_population(starting_locations)
-    history = simulate(population, J)
+    history = simulate(population, J_vectorized, f=f)
 
     anim = vis.full_visualization(history, f, U)
     plt.show()
