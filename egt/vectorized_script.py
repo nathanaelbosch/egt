@@ -21,22 +21,18 @@ import egt.visualisation as vis
 _plot_range = np.arange(-3, 3, 0.001)
 # Discretization of the strategies
 _strategy_resolution = 0.001
-# Function to minimize
-F_STRING = 'x**2 + 0.5*np.sin(30*x)'
-# Parameter of J
-ALPHA = 2
-# "Magnet"
-BETA = 0.1
-# J rescale parameter
-GAMMA = 1
-# Stepsize at each iteration
-DELTA_T = 0.1
-TOTAL_STEPS = 2*60*60
-# Multiple strategy update rounds per location update
-S_ROUNDS = 1
+DEFAULT_PARAMS = {
+    'f_string': 'x**2 + 0.5*np.sin(30*x)',
+    'alpha': 2,
+    'beta': 1,
+    'gamma': 1,
+    'delta_t': 0.1,
+    's_rounds': 2,
+    'total_steps': int(0.5*60*60),
+}
 
 # Szenario 1: Minimum inside
-starting_locations = [-1, 0, 3, 5]
+starting_locations = [-1, 0, 1, 3, 5]
 
 # Szenario 2: Minimum outside
 # starting_locations = [1, 2, 3, 4]
@@ -55,9 +51,9 @@ def parse_args():
     parser.add_argument(
         '-s', '--seed', type=int,
         help='Random seed for numpy')
-    parser.add_argument(
-        '-f', '--function', type=str, default=F_STRING,
-        help='Function to minimize. Write as functional python code')
+    # parser.add_argument(
+    #     '-f', '--function', type=str,
+    #     help='Function to minimize. Write as functional python code')
     return parser.parse_args()
 
 
@@ -65,7 +61,7 @@ def parse_args():
 # Setup - Universal settings that are not affected by some parameter changes
 ###############################################################################
 # We want to minimize the following function with EGT
-F = eval('lambda x:' + F_STRING)
+DEFAULT_PARAMS['f'] = eval('lambda x:' + DEFAULT_PARAMS.get('f_string'))
 
 
 N = len(starting_locations)
@@ -96,8 +92,8 @@ def positive(x):
 
 def J_original(x, u, x2, **kwargs):
     """J as described by Massimo"""
-    alpha = kwargs.get('alpha', ALPHA)
-    f = kwargs.get('f', F)
+    alpha = kwargs.get('alpha', DEFAULT_PARAMS.get('alpha'))
+    f = kwargs.get('f', DEFAULT_PARAMS.get('f'))
     with np.errstate(divide='ignore'):
         out = np.exp(
             -((u - positive(np.tanh(3*(f(x) - f(x2)))) * (x2 - x))**2) /
@@ -110,10 +106,13 @@ def J(x, u, x2, **kwargs):
 
     Used to control the vectorized function below
     """
-    beta = kwargs.get('beta', BETA)
-    f = kwargs.get('f', F)
+    params = DEFAULT_PARAMS.copy()
+    params.update(kwargs)
+    beta = params.get('beta')
+    f = params.get('f')
     out = J_original(x, u, x2, **kwargs)
-    out *= np.exp(beta * (f(x)-f(x2)))
+    # out *= np.exp(beta * (f(x)-f(x2)))
+    out *= np.exp(-beta * f(x2))
     # out *= gamma
     return out
 
@@ -127,9 +126,11 @@ def J_vectorized(points, **kwargs):
     axis=1 the point to compare to
     axis=2 are the strategies
     """
-    f = kwargs.get('f', F)
-    alpha = kwargs.get('alpha', ALPHA)
-    beta = kwargs.get('beta', BETA)
+    params = DEFAULT_PARAMS.copy()
+    params.update(kwargs)
+    f = params.get('f')
+    alpha = params.get('alpha')
+    beta = params.get('beta')
 
     N = len(points)
     f_vals = f(points)
@@ -156,7 +157,8 @@ def J_vectorized(points, **kwargs):
             -1 * ((U.reshape(1, 1, len(U)) - walk_dirs_adj[:, :, None])**2) /
             variance[:, :, None])
 
-    out *= np.exp(beta * f_diffs)[:, :, None]
+    # out *= np.exp(beta * f_diffs)[:, :, None]
+    out *= np.exp(-beta * f_vals)[None, :, None]
 
     # Test addon: 0 if other point higher
     # out *= (f_diffs >= 0)[:, :, None]
@@ -173,10 +175,14 @@ def simulate(initial_population, J, **kwargs):
 
     Returns the full history of locations and strategies
     """
-    s_rounds = kwargs.get('s_rounds', S_ROUNDS)
-    total_steps = kwargs.get('total_steps', TOTAL_STEPS)
-    gamma = kwargs.get('gamma', GAMMA)
-    delta_t = kwargs.get('delta_t', DELTA_T)
+    params = DEFAULT_PARAMS.copy()
+    params.update(kwargs)
+    s_rounds = params.get('s_rounds')
+    total_steps = params.get('total_steps')
+    gamma = params.get('gamma')
+    delta_t = params.get('delta_t')
+    f = params.get('f')
+    beta = params.get('beta')
 
     history = []
     history.append(initial_population)
@@ -189,16 +195,29 @@ def simulate(initial_population, J, **kwargs):
         next_pop = current_pop.copy()
 
         # Strategy updates
+        # Important to use `next_pop` if we du multiple rounds!
         for s in range(s_rounds):
             tot_J = J(next_pop[:, 0], **kwargs)
             sum_i = tot_J.sum(axis=1)
-            mean_outcome = (sum_i * current_pop[:, 1:]).sum(axis=1)
+            mean_outcome = (sum_i * next_pop[:, 1:]).sum(axis=1)
             delta = sum_i - mean_outcome[:, None]
             delta = np.sum(
                 tot_J - np.sum(
-                    tot_J * current_pop[:, 1:][:, None, :],
+                    tot_J * next_pop[:, 1:][:, None, :],
                     axis=2)[:, :, None],
                 axis=1)
+
+            # Magnet Reweighting
+            full_exp_eval = np.tile(
+                np.exp(-beta*f(next_pop[:, 0])), (next_pop.shape[0], 1))
+            np.fill_diagonal(full_exp_eval, 0)
+            magnet_reweighting = full_exp_eval.sum(axis=1)
+            # My version:
+            # full_diff_exp_eval = np.exp(
+            #     -beta*(np.tile(f(next_pop[:, 0]), (next_pop.shape[0], 1)) - np.tile(f(next_pop[:, 0]), (next_pop.shape[0], 1)).T))
+            # magnet_reweighting = full_diff_exp_eval.sum(axis=1)
+            delta /= magnet_reweighting[:, None]
+
             next_pop[:, 1:] *= (1 + gamma * delta_t * delta)
             # next_pop[:, 1:] /= next_pop[:, 1:].sum(axis=1)[:, None]
 
@@ -212,37 +231,41 @@ def simulate(initial_population, J, **kwargs):
         _locs = history[-1][:, 0]
         max_dist = max(_locs) - min(_locs)
         probability_to_stand = current_pop[:, 1+len(U)//2]
-        # if max_dist < 1e-2 and probability_to_stand.max() > 1 - 1e-15:
-        #     logging.info('Early stopping thanks to our rule!')
-        #     break
+        if max_dist < 1e-2 and probability_to_stand.max() > 1 - 1e-15:
+            logging.info('Early stopping thanks to our rule!')
+            break
 
     return history
 
 
 def main():
     args = parse_args()
-    if not args.seed:
-        seed = random.randint(0, 2**32-1)
-        logging.info(f'Seed used for this simulation: {seed}')
-        np.random.seed(seed)
-    else:
-        logging.info(f'Seed used for this simulation: {args.seed}')
-        np.random.seed(args.seed)
-
-    logging.info(f'Function to minimize: f(x)={args.function}')
-    f = eval('lambda x:' + args.function)
+    seed = random.randint(0, 2**32-1) if not args.seed else args.seed
+    logging.info(f'Seed used for this simulation: {seed}')
+    np.random.seed(seed)
 
     population = create_initial_population(starting_locations)
-    history = simulate(population, J_vectorized, f=f)
+    history = simulate(population, J_vectorized)
 
-    anim = vis.full_visualization(history, f, U)
-    plt.show()
-
+    # Create animation
+    params_to_show = ['beta', 'gamma', 's_rounds']
+    # {
+    #     'beta': BETA,
+    #     'gamma': GAMMA,
+    #     # 'delta_t': DELTA_T,
+    #     'strategy_update_rounds': S_ROUNDS,
+    # }
+    text = '\n'.join([f'{p}: {DEFAULT_PARAMS[p]}'for p in params_to_show])
+    anim = vis.full_visualization(
+        history, DEFAULT_PARAMS['f'], U, parameter_text=text)
     if args.save:
-        # Need to redo the animation as closing the plot destroys it
         logging.info('Saving animation, this might take a while')
-        anim = vis.full_visualization(history, f, U)
-        anim.save(f'examples/{seed}.mp4', fps=60)
+        text = '_'.join([f'{p}{DEFAULT_PARAMS[p]}'for p in params_to_show])
+        anim.save(
+            f'examples/{text}_{seed}.mp4',
+            fps=30)
+    else:
+        plt.show()
 
 
 if __name__ == '__main__':
