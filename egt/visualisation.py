@@ -14,6 +14,7 @@ TUM_COLORS = {
     'accent_orange': '#e37222',
     'accent_green': '#a2ad00'
 }
+FIGSIZE = (11.692, 8.267)
 
 
 def graph_visualization(
@@ -39,7 +40,7 @@ def graph_visualization(
     np.matplotlib.animation.Animation
         Animation to show at the end
     """
-    fig = plt.figure()
+    fig = plt.figure(figsize=FIGSIZE)
     _xmin, _xmax = plot_range.min(), plot_range.max()
     _ymin, _ymax = function(plot_range).min(), function(plot_range).max()
     ax = plt.axes(
@@ -77,7 +78,8 @@ def full_visualization(
         history,
         function,
         U,
-        plot_range=np.arange(-3, 3, 0.001)):
+        plot_range=np.arange(-3, 3, 0.001),
+        parameter_text=''):
     """Animation
 
     Complete visualization of the process:
@@ -106,7 +108,7 @@ def full_visualization(
         return graph_visualization(history, function, U)
 
     # Setup layout
-    fig = plt.figure()
+    fig = plt.figure(figsize=FIGSIZE)
     gs = gridspec.GridSpec(
         3, n_points)
     ax_function_graph = fig.add_subplot(gs[0:2, :])
@@ -119,6 +121,17 @@ def full_visualization(
     ax_function_graph.set_xlim((_xmin, _xmax))
     ax_function_graph.set_ylim((_ymin, _ymax))
 
+    # Text to specify the parameters
+    ax_function_graph.text(
+        0.5, 0.8, parameter_text,
+        horizontalalignment='center',
+        verticalalignment='center',
+        transform=ax_function_graph.transAxes,
+        fontsize=12,
+        # animated=True,
+        bbox=dict(facecolor=TUM_COLORS['blue'], alpha=0.5),
+    )
+
     dotplots = []
     for i in range(n_points):
         dots, = ax_function_graph.plot(
@@ -127,7 +140,7 @@ def full_visualization(
             marker='o')
         dotplots.append(dots)
     base_function, = ax_function_graph.plot(
-        [], [], lw=2, color=TUM_COLORS['blue'])
+        [], [], lw=2, color=TUM_COLORS['blue'], antialiased=True)
     base_function.set_data(plot_range, function(plot_range))
 
     # Initialize strategy plots
@@ -153,12 +166,12 @@ def full_visualization(
         current_pop = history[i]
         point_locations_x = current_pop[:, 0]
         point_locations_y = function(point_locations_x)
-        for i, dots in enumerate(dotplots):
-            dots.set_data(point_locations_x[i], point_locations_y[i])
+        for j, dots in enumerate(dotplots):
+            dots.set_data(point_locations_x[j], point_locations_y[j])
 
-        for i in range(n_points):
-            linearr[i].set_data(
-                U, current_pop[i, 1:]/np.max(current_pop[i, 1:]))
+        for j in range(n_points):
+            linearr[j].set_data(
+                U, current_pop[j, 1:]/np.max(current_pop[j, 1:]))
         return dots, linearr
 
     anim = animation.FuncAnimation(fig, animate, init_func=init,
@@ -180,7 +193,7 @@ def plot_2d(
     Z = f(grid).reshape(M, M)
 
     if ax is None:
-        fig = plt.figure()
+        fig = plt.figure(figsize=FIGSIZE)
         ax = fig.add_subplot(111, projection='3d')
 
     transparency_suffix = hex(int(alpha/100*255))[2:]
