@@ -46,16 +46,27 @@ def graph_visualization(
     ax = plt.axes(
         xlim=(_xmin, _xmax),
         ylim=(_ymin, _ymax))
-    dots, = ax.plot([], [], 'ro')
-    base_function, = ax.plot([], [], lw=2)
+    dots, = ax.plot(
+        [], [], 'ro',
+        # color=TUM_COLORS['accent_orange'],
+    )
+    base_function, = ax.plot([], [], lw=2, color=TUM_COLORS['blue'])
     base_function.set_data(plot_range, function(plot_range))
-    line2, = ax.plot([], [])
+    # line2, = ax.plot([], [])
+    iter_text = ax.text(
+        0.0, 0.0, '',
+        transform=ax.transAxes,
+        horizontalalignment='left',
+        verticalalignment='bottom',
+    )
 
     # initialization function: plot the background of each frame
     def init():
         dots.set_data([], [])
-        line2.set_data([], [])
-        return dots, line2
+        # line2.set_data([], [])
+        iter_text.set_text('')
+        # return dots, line2, iter_text
+        return dots, iter_text
 
     # animation function.  This is called sequentially
     def animate(i):
@@ -64,9 +75,12 @@ def graph_visualization(
         point_locations_y = function(point_locations_x)
         dots.set_data(point_locations_x, point_locations_y)
 
-        y1 = current_pop[0]
-        line2.set_data(y1[0] + U, y1[1:]/np.max(y1[1:]))
-        return dots, line2
+        # y1 = current_pop[0]
+        # line2.set_data(y1[0] + U, y1[1:]/np.max(y1[1:]))
+
+        iter_text.set_text(f'{i}/{len(history)}')
+        # return dots, line2, iter_text
+        return dots, iter_text
 
     anim = animation.FuncAnimation(fig, animate, init_func=init,
                                    frames=len(history), interval=1, blit=False,
