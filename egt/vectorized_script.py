@@ -18,17 +18,17 @@ import egt.visualisation as vis
 ###############################################################################
 # Parameters
 ###############################################################################
-_plot_range = np.arange(-3, 3, 0.001)
+_plot_range = np.arange(-2, 2, 0.001)
 # Discretization of the strategies
 _strategy_resolution = 0.001
 DEFAULT_PARAMS = {
     'f_string': 'x**2 + 0.5*np.sin(30*x)',
     'alpha': 2,
-    'beta': 1,
+    'beta': 100,
     'gamma': 1,
     'delta_t': 0.1,
-    's_rounds': 2,
-    'total_steps': int(0.5*60*60),
+    's_rounds': 3,
+    'total_steps': int(3*60*60),
 }
 
 # Szenario 1: Minimum inside
@@ -37,7 +37,9 @@ starting_locations = [-1, 0, 1, 3, 5]
 # Szenario 2: Minimum outside
 # starting_locations = [1, 2, 3, 4]
 
-# starting_locations = [-0.1, 0.3, 0.3, 0.3]
+# Szenario 3: N random particles
+N = 20
+starting_locations = np.random.uniform(-3, 10, N)
 
 
 ###############################################################################
@@ -67,12 +69,14 @@ DEFAULT_PARAMS['f'] = eval('lambda x:' + DEFAULT_PARAMS.get('f_string'))
 N = len(starting_locations)
 
 # All available strategies:
-U = np.arange(-1, 1, _strategy_resolution)
+U = np.arange(-0.1, 0.1, _strategy_resolution)
 
-# Initial mixed strategy - continuous:
-with np.errstate(divide='ignore'):
-    sigma = np.exp(-1/(1-(U**2)))
-sigma = sigma / np.sum(sigma)
+# # Initial mixed strategy - continuous:
+# with np.errstate(divide='ignore'):
+#     sigma = np.exp(-1/(1-(U**2)))
+# sigma = sigma / np.sum(sigma)
+# Alternative initial mixed strategy: Uniform
+sigma = np.array([1]*len(U)) / len(U)
 
 
 def create_initial_population(starting_locations):
@@ -257,7 +261,9 @@ def main():
     # }
     text = '\n'.join([f'{p}: {DEFAULT_PARAMS[p]}'for p in params_to_show])
     anim = vis.full_visualization(
-        history, DEFAULT_PARAMS['f'], U, parameter_text=text)
+        history, DEFAULT_PARAMS['f'], U,
+        plot_range=_plot_range,
+        parameter_text=text)
     if args.save:
         logging.info('Saving animation, this might take a while')
         text = '_'.join([f'{p}{DEFAULT_PARAMS[p]}'for p in params_to_show])
