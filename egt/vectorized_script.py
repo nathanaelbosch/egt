@@ -32,14 +32,21 @@ DEFAULT_PARAMS = {
 }
 
 # Szenario 1: Minimum inside
-starting_locations = [-1, 0, 1, 3, 5]
+# starting_locations = [-1, 0, 1, 3, 5]
 
 # Szenario 2: Minimum outside
 # starting_locations = [1, 2, 3, 4]
 
 # Szenario 3: N random particles
-N = 20
-starting_locations = np.random.uniform(-3, 10, N)
+
+
+def get_starting_locations():
+    """Need this as otherwise the seed will not be used"""
+
+    N = 20
+    starting_locations = np.random.uniform(-3, 10, N)
+
+    return starting_locations
 
 
 ###############################################################################
@@ -65,8 +72,6 @@ def parse_args():
 # We want to minimize the following function with EGT
 DEFAULT_PARAMS['f'] = eval('lambda x:' + DEFAULT_PARAMS.get('f_string'))
 
-
-N = len(starting_locations)
 
 # All available strategies:
 U = np.arange(-0.1, 0.1, _strategy_resolution)
@@ -248,6 +253,7 @@ def main():
     logging.info(f'Seed used for this simulation: {seed}')
     np.random.seed(seed)
 
+    starting_locations = get_starting_locations()
     population = create_initial_population(starting_locations)
     history = simulate(population, J_vectorized)
 
