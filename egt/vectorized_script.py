@@ -9,7 +9,7 @@ import tqdm
 import random
 import argparse
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 # tqdm.monitor_interval = 0
 
 import egt.visualisation as vis
@@ -18,28 +18,32 @@ import egt.visualisation as vis
 ###############################################################################
 # Parameters
 ###############################################################################
-_plot_range = np.arange(-5, 5, 0.001)
+_plot_range = np.arange(-3, 3, 0.001)
 # Discretization of the strategies
 _strategy_resolution = 0.01
 DEFAULT_PARAMS = {
     'f': lambda x: x**2 + 0.5*np.sin(30*x),
+    # 'f': lambda x: (
+    #     (((x-2)**2 * (x+2)**2 + 10*x) / (x**2 + 1)) +
+    #     0.3 * (np.abs(x)+5) * np.sin(30*x)),
     'alpha': 2,
     'beta': 100,
-    'gamma': 100,
-    'delta_t': 0.01,
+    'gamma': 10,
+    'delta_t': 0.1,
     's_rounds': 2,
-    'total_steps': int(3*60*60),
+    'total_steps': int(60*60),
 }
 
 # Szenario 1: Minimum inside
-starting_locations = [-1, 0, 1, 3, 5]
+# starting_locations = [-1, 0, 1, 3, 5]
 
 # Szenario 2: Minimum outside
 # starting_locations = [1, 2, 3, 4]
 
 # Szenario 3: N random particles
-N = 2
-starting_locations = np.random.uniform(-3, 10, N)
+N = 15
+starting_locations = np.random.uniform(0, 10, N)
+# starting_locations[-3:] = [-6, -5, -7]
 # starting_locations = [1.62245]*10 + [2]
 
 
@@ -63,6 +67,8 @@ def parse_args():
 ###############################################################################
 # Setup - Universal settings that are not affected by some parameter changes
 ###############################################################################
+# DEFAULT_PARAMS['f'] = eval(
+#     'lambda x: ' + DEFAULT_PARAMS.get('f_string').replace('\n', ' '))
 N = len(starting_locations)
 
 # All available strategies:
@@ -213,7 +219,6 @@ def simulate(initial_population, J, **kwargs):
                 np.exp(-beta*f(next_pop[:, 0])), (next_pop.shape[0], 1))
             np.fill_diagonal(full_exp_eval, 0)
             magnet_reweighting = full_exp_eval.sum(axis=1)
-            print(magnet_reweighting)
             # My version:
             # full_diff_exp_eval = np.exp(
             #     -beta*(np.tile(f(next_pop[:, 0]), (next_pop.shape[0], 1)) - np.tile(f(next_pop[:, 0]), (next_pop.shape[0], 1)).T))
@@ -237,8 +242,8 @@ def simulate(initial_population, J, **kwargs):
             logging.info('Early stopping thanks to our rule!')
             break
 
-    logging.debug(f'Max distance at the end: {max_dist}')
-    logging.debug(f'Max "staying-uncertainty": {max_prob_to_stay}')
+    logging.info(f'Max distance at the end: {max_dist}')
+    logging.info(f'Max "staying-uncertainty": {max_prob_to_stay}')
 
     return history
 
@@ -254,7 +259,9 @@ def main():
 
     # Create animation
     params_to_show = ['beta', 'gamma', 's_rounds']
-    text = '\n'.join([f'{p}: {DEFAULT_PARAMS[p]}'for p in params_to_show])
+    text = '\n'.join(
+        [f'#points: {N}'] +
+        [f'{p}: {DEFAULT_PARAMS[p]}'for p in params_to_show])
     anim = vis.full_visualization(
         history, DEFAULT_PARAMS['f'], U,
         plot_range=_plot_range,
