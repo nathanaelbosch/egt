@@ -1,8 +1,12 @@
 """Visualisation"""
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import animation
 import matplotlib.gridspec as gridspec
+from abc import ABC, abstractmethod
+
+
+from egt.animation import (
+    Animation, DotsAnimation, StrategyAnimation, FrameCounter)
 
 
 TUM_COLORS = {
@@ -17,11 +21,32 @@ TUM_COLORS = {
 FIGSIZE = (11.692, 8.267)
 
 
+def plot_function_graph(ax, f, plot_range):
+    ax.plot(
+        plot_range, f(plot_range),
+        lw=2,
+        color=TUM_COLORS['blue'])
+
+
+def plot_parameter_text(ax, text):
+    ax.text(
+        0.99, 0.02, text,
+        horizontalalignment='right',
+        verticalalignment='bottom',
+        transform=ax.transAxes,
+        fontsize=12,
+        # animated=True,
+        bbox=dict(facecolor=TUM_COLORS['blue'], alpha=0.5),
+    )
+
+
+
 def graph_visualization(
         history,
-        function,
+        f,
         U,
-        plot_range=np.arange(-3, 3, 0.001)):
+        plot_range=np.arange(-3, 3, 0.001),
+        parameter_text=''):
     """Animation of the graph of the function and dots moving over it
 
     Parameters
@@ -40,57 +65,35 @@ def graph_visualization(
     np.matplotlib.animation.Animation
         Animation to show at the end
     """
+    # Characteristic thing of this function: Layout, and choice of components
+    # Layout: Upper side with the graph, bottom with the strategies
     fig = plt.figure(figsize=FIGSIZE)
     _xmin, _xmax = plot_range.min(), plot_range.max()
-    _ymin, _ymax = function(plot_range).min(), function(plot_range).max()
+    _ymin, _ymax = f(plot_range).min(), f(plot_range).max()
     ax = plt.axes(
         xlim=(_xmin, _xmax),
         ylim=(_ymin, _ymax))
-    dots, = ax.plot(
-        [], [], 'ro',
-        # color=TUM_COLORS['accent_orange'],
-    )
-    base_function, = ax.plot([], [], lw=2, color=TUM_COLORS['blue'])
-    base_function.set_data(plot_range, function(plot_range))
-    # line2, = ax.plot([], [])
-    iter_text = ax.text(
-        0.0, 0.0, '',
-        transform=ax.transAxes,
-        horizontalalignment='left',
-        verticalalignment='bottom',
-    )
 
-    # initialization function: plot the background of each frame
-    def init():
-        dots.set_data([], [])
-        # line2.set_data([], [])
-        iter_text.set_text('')
-        # return dots, line2, iter_text
-        return dots, iter_text
+    # Static Components:
+    plot_function_graph(ax, f, plot_range)
+    plot_parameter_text(ax, parameter_text)
 
-    # animation function.  This is called sequentially
-    def animate(i):
-        current_pop = history[i]
-        point_locations_x = np.array([y[0] for y in current_pop])
-        point_locations_y = function(point_locations_x)
-        dots.set_data(point_locations_x, point_locations_y)
+    # Animated Components
+    anim_handler = Animation(fig)
+    anim_handler.register(DotsAnimation(
+        ax=ax,
+        f=f,
+        x_locations=[pop[:, 0] for pop in history],
+        color='red'))
+    anim_handler.register(FrameCounter(ax=ax, max_frames=len(history)))
+    plt.tight_layout()
 
-        # y1 = current_pop[0]
-        # line2.set_data(y1[0] + U, y1[1:]/np.max(y1[1:]))
-
-        iter_text.set_text(f'{i}/{len(history)}')
-        # return dots, line2, iter_text
-        return dots, iter_text
-
-    anim = animation.FuncAnimation(fig, animate, init_func=init,
-                                   frames=len(history), interval=1, blit=False,
-                                   repeat=False)
-    return anim
+    return anim_handler.generate(frames=len(history))
 
 
 def full_visualization(
         history,
-        function,
+        f,
         U,
         plot_range=np.arange(-3, 3, 0.001),
         parameter_text=''):
@@ -116,82 +119,62 @@ def full_visualization(
     np.matplotlib.animation.Animation
         Animation to show at the end
     """
+    # Only use this if we have few enough points for it to be useful
     colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown']
     n_points = history[0].shape[0]
     if n_points > len(colors):
-        return graph_visualization(history, function, U)
+        return graph_visualization(history, f, U, plot_range, parameter_text)
 
-    # Setup layout
+    # Layout: Upper side with the graph, bottom with the strategies
     fig = plt.figure(figsize=FIGSIZE)
-    gs = gridspec.GridSpec(
-        3, n_points)
+    gs = gridspec.GridSpec(3, n_points)
     ax_function_graph = fig.add_subplot(gs[0:2, :])
-    ax_strategies = [
-        fig.add_subplot(gs[2, i]) for i in range(n_points)]
+    ax_strategies = [fig.add_subplot(gs[2, i]) for i in range(n_points)]
 
     # Initialize function plot
     _xmin, _xmax = plot_range.min(), plot_range.max()
-    _ymin, _ymax = function(plot_range).min(), function(plot_range).max()
+    _ymin, _ymax = f(plot_range).min(), f(plot_range).max()
     ax_function_graph.set_xlim((_xmin, _xmax))
     ax_function_graph.set_ylim((_ymin, _ymax))
 
     # Text to specify the parameters
-    ax_function_graph.text(
-        0.5, 0.8, parameter_text,
-        horizontalalignment='center',
-        verticalalignment='center',
-        transform=ax_function_graph.transAxes,
-        fontsize=12,
-        # animated=True,
-        bbox=dict(facecolor=TUM_COLORS['blue'], alpha=0.5),
-    )
+    plot_parameter_text(ax_function_graph, parameter_text)
 
-    dotplots = []
+    # Static Components
+    plot_function_graph(ax_function_graph, f, plot_range)
+
+    ###########################################################################
+    # Animated Components
+    anim_handler = Animation(fig)
+
+    # Dots: Each with a different color, therefore different component
     for i in range(n_points):
-        dots, = ax_function_graph.plot(
-            [], [],
-            color=colors[i],
-            marker='o')
-        dotplots.append(dots)
-    base_function, = ax_function_graph.plot(
-        [], [], lw=2, color=TUM_COLORS['blue'], antialiased=True)
-    base_function.set_data(plot_range, function(plot_range))
+        anim_handler.register(
+            DotsAnimation(
+                ax=ax_function_graph,
+                f=f,
+                x_locations=[pop[i, 0] for pop in history],
+                color=colors[i]))
 
-    # Initialize strategy plots
-    linearr = []
+    # Strategy Plots
     for i, ax in enumerate(ax_strategies):
         ax.set_ylim([0, 1.1])
         ax.set_xlim([U.min(), U.max()])
-        line, = ax.plot(
-            [], [],
-            color=colors[i])
-        linearr.append(line)
+        anim_handler.register(
+            StrategyAnimation(
+                ax=ax,
+                U=U,
+                strat_history=[pop[i, 1:] for pop in history],
+                color=colors[i])
+        )
 
+    anim_handler.register(FrameCounter(
+        ax=ax_function_graph, max_frames=len(history)))
+
+    # A E S T H E T I C S
     plt.tight_layout()
 
-    def init():
-        for dots in dotplots:
-            dots.set_data([], [])
-        for line in linearr:
-            line.set_data([], [])
-        return dots, linearr
-
-    def animate(i):
-        current_pop = history[i]
-        point_locations_x = current_pop[:, 0]
-        point_locations_y = function(point_locations_x)
-        for j, dots in enumerate(dotplots):
-            dots.set_data(point_locations_x[j], point_locations_y[j])
-
-        for j in range(n_points):
-            linearr[j].set_data(
-                U, current_pop[j, 1:]/np.max(current_pop[j, 1:]))
-        return dots, linearr
-
-    anim = animation.FuncAnimation(fig, animate, init_func=init,
-                                   frames=len(history), interval=1, blit=False,
-                                   repeat=False)
-    return anim
+    return anim_handler.generate(frames=len(history))
 
 
 def plot_2d(

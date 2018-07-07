@@ -18,31 +18,33 @@ import egt.visualisation as vis
 ###############################################################################
 # Parameters
 ###############################################################################
-_plot_range = np.arange(-2, 2, 0.001)
+_plot_range = np.arange(-3, 3, 0.001)
 # Discretization of the strategies
-_strategy_resolution = 0.001
+_strategy_resolution = 0.01
 DEFAULT_PARAMS = {
-    'f_string': 'x**2 + 0.5*np.sin(30*x)',
+    'f': lambda x: x**2 + 0.5*np.sin(30*x),
+    # 'f': lambda x: (
+    #     (((x-2)**2 * (x+2)**2 + 10*x) / (x**2 + 1)) +
+    #     0.3 * (np.abs(x)+5) * np.sin(30*x)),
     'alpha': 2,
     'beta': 100,
-    'gamma': 1,
+    'gamma': 10,
     'delta_t': 0.1,
-    's_rounds': 3,
-    'total_steps': int(3*60*60),
+    's_rounds': 2,
+    'total_steps': int(60*60),
 }
-
-# Szenario 1: Minimum inside
-# starting_locations = [-1, 0, 1, 3, 5]
-
-# Szenario 2: Minimum outside
-# starting_locations = [1, 2, 3, 4]
-
-# Szenario 3: N random particles
 
 
 def get_starting_locations():
     """Need this as otherwise the seed will not be used"""
 
+    # Szenario 1: Minimum inside
+    # starting_locations = [-1, 0, 1, 3, 5]
+
+    # Szenario 2: Minimum outside
+    # starting_locations = [1, 2, 3, 4]
+
+    # Szenario 3: N random particles
     N = 20
     starting_locations = np.random.uniform(-3, 10, N)
 
@@ -69,19 +71,15 @@ def parse_args():
 ###############################################################################
 # Setup - Universal settings that are not affected by some parameter changes
 ###############################################################################
-# We want to minimize the following function with EGT
-DEFAULT_PARAMS['f'] = eval('lambda x:' + DEFAULT_PARAMS.get('f_string'))
-
-
 # All available strategies:
-U = np.arange(-0.1, 0.1, _strategy_resolution)
+U = np.arange(-1, 1, _strategy_resolution)
 
 # # Initial mixed strategy - continuous:
-# with np.errstate(divide='ignore'):
-#     sigma = np.exp(-1/(1-(U**2)))
-# sigma = sigma / np.sum(sigma)
+with np.errstate(divide='ignore'):
+    sigma = np.exp(-1/(1-(U**2)))
+sigma = sigma / np.sum(sigma)
 # Alternative initial mixed strategy: Uniform
-sigma = np.array([1]*len(U)) / len(U)
+# sigma = np.array([1]*len(U)) / len(U)
 
 
 def create_initial_population(starting_locations):
@@ -239,10 +237,13 @@ def simulate(initial_population, J, **kwargs):
         # Break condition for early stopping
         _locs = history[-1][:, 0]
         max_dist = max(_locs) - min(_locs)
-        probability_to_stand = current_pop[:, 1+len(U)//2]
-        if max_dist < 1e-2 and probability_to_stand.max() > 1 - 1e-15:
+        max_prob_to_stay = current_pop[:, 1+len(U)//2].max()
+        if max_dist < 1e-2 and max_prob_to_stay > 1 - 1e-15:
             logging.info('Early stopping thanks to our rule!')
             break
+
+    logging.info(f'Max distance at the end: {max_dist}')
+    logging.info(f'Max "staying-uncertainty": {max_prob_to_stay}')
 
     return history
 
@@ -259,13 +260,9 @@ def main():
 
     # Create animation
     params_to_show = ['beta', 'gamma', 's_rounds']
-    # {
-    #     'beta': BETA,
-    #     'gamma': GAMMA,
-    #     # 'delta_t': DELTA_T,
-    #     'strategy_update_rounds': S_ROUNDS,
-    # }
-    text = '\n'.join([f'{p}: {DEFAULT_PARAMS[p]}'for p in params_to_show])
+    text = '\n'.join(
+        [f'#points: {len(starting_locations)}'] +
+        [f'{p}: {DEFAULT_PARAMS[p]}'for p in params_to_show])
     anim = vis.full_visualization(
         history, DEFAULT_PARAMS['f'], U,
         plot_range=_plot_range,
@@ -275,7 +272,7 @@ def main():
         text = '_'.join([f'{p}{DEFAULT_PARAMS[p]}'for p in params_to_show])
         anim.save(
             f'examples/{text}_{seed}.mp4',
-            fps=30)
+            fps=60)
     else:
         plt.show()
 
