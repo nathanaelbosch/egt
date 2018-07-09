@@ -40,7 +40,6 @@ def plot_parameter_text(ax, text):
     )
 
 
-
 def graph_visualization(
         history,
         f,

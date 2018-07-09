@@ -10,6 +10,7 @@ import random
 import argparse
 import logging
 logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.DEBUG)
 # tqdm.monitor_interval = 0
 
 import egt.visualisation as vis
@@ -18,19 +19,19 @@ import egt.visualisation as vis
 ###############################################################################
 # Parameters
 ###############################################################################
-_plot_range = np.arange(-3, 3, 0.001)
+_plot_range = np.arange(-15, 10, 0.001)
 # Discretization of the strategies
 _strategy_resolution = 0.01
 DEFAULT_PARAMS = {
-    'f': lambda x: x**2 + 0.5*np.sin(30*x),
-    # 'f': lambda x: (
-    #     (((x-2)**2 * (x+2)**2 + 10*x) / (x**2 + 1)) +
-    #     0.3 * (np.abs(x)+5) * np.sin(30*x)),
+    # 'f': lambda x: x**2 + 0.5*np.sin(30*x),
+    'f': lambda x: (
+        (((x-2)**2 * (x+2)**2 + 10*x) / (x**2 + 1)) +
+        0.3 * (np.abs(x)+5) * np.sin(10*x)),
     'alpha': 2,
     'beta': 100,
     'gamma': 10,
     'delta_t': 0.1,
-    's_rounds': 2,
+    's_rounds': 1,
     'total_steps': int(60*60),
 }
 
@@ -45,8 +46,9 @@ def get_starting_locations():
     # starting_locations = [1, 2, 3, 4]
 
     # Szenario 3: N random particles
-    N = 20
-    starting_locations = np.random.uniform(-3, 10, N)
+    N = 30
+    starting_locations = np.random.uniform(0, 10, N)
+    starting_locations[-3:] = [-7, -6, -5]
 
     return starting_locations
 
@@ -118,9 +120,7 @@ def J(x, u, x2, **kwargs):
     beta = params.get('beta')
     f = params.get('f')
     out = J_original(x, u, x2, **kwargs)
-    # out *= np.exp(beta * (f(x)-f(x2)))
     out *= np.exp(-beta * f(x2))
-    # out *= gamma
     return out
 
 
@@ -164,32 +164,31 @@ def J_vectorized(points, **kwargs):
             -1 * ((U.reshape(1, 1, len(U)) - walk_dirs_adj[:, :, None])**2) /
             variance[:, :, None])
 
-    # out *= np.exp(beta * f_diffs)[:, :, None]
-    out *= np.exp(-beta * f_vals)[None, :, None]
-
-    # Test addon: 0 if other point higher
-    # out *= (f_diffs >= 0)[:, :, None]
-    # out *= f_diffs_tanh_positive[:, :, None]
-    # out *= gamma
+    # Reweighting will happen here! ("Magnet")
+    weights = (
+        # np.exp(f_diffs[:, :, None])
+        np.exp(-beta * f_vals[None, :, None])
+    )
+    out = out * weights / np.sum(weights)
+    # out = out * weights
 
     return out
 
 
-def simulate(initial_population, J, **kwargs):
-    """Simulates the game J with the given starting population
+def simulate(initial_population, J_vectorized, **kwargs):
+    """Simulates the game J_vectorized with the given starting population
 
-    J is a vectorized version, such as J_vectorized
+    J_vectorized is a vectorized version, such as J_vectorized
 
     Returns the full history of locations and strategies
     """
+    # Get parameters
     params = DEFAULT_PARAMS.copy()
     params.update(kwargs)
     s_rounds = params.get('s_rounds')
     total_steps = params.get('total_steps')
     gamma = params.get('gamma')
     delta_t = params.get('delta_t')
-    f = params.get('f')
-    beta = params.get('beta')
 
     history = []
     history.append(initial_population)
@@ -202,9 +201,12 @@ def simulate(initial_population, J, **kwargs):
         next_pop = current_pop.copy()
 
         # Strategy updates
-        # Important to use `next_pop` if we du multiple rounds!
         for s in range(s_rounds):
-            tot_J = J(next_pop[:, 0], **kwargs)
+            # Formula: sigma = (1 + delta_t * gamma * delta) * sigma
+
+            # All possible calls of J, in a single array
+            tot_J = J_vectorized(next_pop[:, 0], **kwargs)
+
             sum_i = tot_J.sum(axis=1)
             mean_outcome = (sum_i * next_pop[:, 1:]).sum(axis=1)
             delta = sum_i - mean_outcome[:, None]
@@ -213,17 +215,6 @@ def simulate(initial_population, J, **kwargs):
                     tot_J * next_pop[:, 1:][:, None, :],
                     axis=2)[:, :, None],
                 axis=1)
-
-            # Magnet Reweighting
-            full_exp_eval = np.tile(
-                np.exp(-beta*f(next_pop[:, 0])), (next_pop.shape[0], 1))
-            np.fill_diagonal(full_exp_eval, 0)
-            magnet_reweighting = full_exp_eval.sum(axis=1)
-            # My version:
-            # full_diff_exp_eval = np.exp(
-            #     -beta*(np.tile(f(next_pop[:, 0]), (next_pop.shape[0], 1)) - np.tile(f(next_pop[:, 0]), (next_pop.shape[0], 1)).T))
-            # magnet_reweighting = full_diff_exp_eval.sum(axis=1)
-            delta /= magnet_reweighting[:, None]
 
             next_pop[:, 1:] *= (1 + gamma * delta_t * delta)
             # next_pop[:, 1:] /= next_pop[:, 1:].sum(axis=1)[:, None]
@@ -238,6 +229,7 @@ def simulate(initial_population, J, **kwargs):
         _locs = history[-1][:, 0]
         max_dist = max(_locs) - min(_locs)
         max_prob_to_stay = current_pop[:, 1+len(U)//2].max()
+        logging.debug(f'Max distance: {max_dist}')
         if max_dist < 1e-2 and max_prob_to_stay > 1 - 1e-15:
             logging.info('Early stopping thanks to our rule!')
             break
@@ -261,7 +253,7 @@ def main():
     # Create animation
     params_to_show = ['beta', 'gamma', 's_rounds']
     text = '\n'.join(
-        [f'#points: {len(starting_locations)}'] +
+        [f'n_points: {len(starting_locations)}'] +
         [f'{p}: {DEFAULT_PARAMS[p]}'for p in params_to_show])
     anim = vis.full_visualization(
         history, DEFAULT_PARAMS['f'], U,

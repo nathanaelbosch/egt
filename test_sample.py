@@ -6,6 +6,8 @@ from egt.vectorized_script import *
 
 
 def test_J():
+    starting_locations = get_starting_locations()
+    N = len(starting_locations)
     population = create_initial_population(starting_locations)
     points = population[:, 0]
     out = J_vectorized(population[:, 0])
