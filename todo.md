@@ -1,0 +1,6 @@
+- 2D
+- Mail to Massimo
+    - Good and bad examples
+    - Ask for paper
+- Mass testing
+- Fix seed.
