@@ -35,7 +35,7 @@ def J_idea(x, top):
 
 
 def myJ(x, u, x2):
-    if f(x2) < f(x):
+    if f(x2) <= f(x):
         return J_idea(u, x2-x)
     else:
         return J_idea(u, 0)
@@ -55,7 +55,7 @@ def myJ_vectorized(locations):
                  np.tile(locations[:, None, :], (1, N, 1)))
 
     walk_dirs_ifgood = np.where(
-        f_diffs[:, :, None] > 0,
+        f_diffs[:, :, None] >= 0,
         walk_dirs,
         0)
 
