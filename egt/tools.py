@@ -6,11 +6,6 @@ def positive(x):
     return (np.abs(x) + x)/2
 
 
-def my_norm(x, ord=2, axis=2):
-    """Norm to the power of ord"""
-    return np.sum(np.abs(x) ** ord, axis=axis)
-
-
 def J_original(x, u, x2, **kwargs):
     """J as described by Massimo"""
     alpha = kwargs.get('alpha', DEFAULT_PARAMS.get('alpha'))
