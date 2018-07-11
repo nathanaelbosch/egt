@@ -46,7 +46,8 @@ def graph_visualization(
         f,
         U,
         plot_range=np.arange(-3, 3, 0.001),
-        parameter_text=''):
+        parameter_text='',
+        max_len=30*60):
     """Animation of the graph of the function and dots moving over it
 
     Parameters
@@ -96,7 +97,6 @@ def graph_visualization(
         max_val=20))
     plt.tight_layout()
 
-    max_len = 3600
     if len(history) > max_len:
         frames = range(0, len(history), len(history)//max_len)
     else:
@@ -109,7 +109,8 @@ def full_visualization(
         f,
         U,
         plot_range=np.arange(-3, 3, 0.001),
-        parameter_text=''):
+        parameter_text='',
+        max_len=30*60):
     """Animation
 
     Complete visualization of the process:
@@ -133,7 +134,8 @@ def full_visualization(
         Animation to show at the end
     """
     # Only use this if we have few enough points for it to be useful
-    colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown']
+    colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown',
+              'black', 'magenta', 'darkblue', 'darkgreen']
     start_locs, start_strats = history[0]
     n_points = start_locs.shape[0]
     if n_points > len(colors):
@@ -188,7 +190,6 @@ def full_visualization(
     # A E S T H E T I C S
     plt.tight_layout()
 
-    max_len = 3600
     if len(history) > max_len:
         frames = range(0, len(history), len(history)//max_len)
     else:
