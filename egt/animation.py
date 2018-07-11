@@ -53,6 +53,26 @@ class StrategyAnimation(AnimationComponent):
             self.U, self.strat_history[i]/np.max(self.strat_history[i]))
 
 
+class StrategyOnDotsAnimation(AnimationComponent):
+    def __init__(self, ax, U, strat_history, loc_history, max_val=1, **kwargs):
+        super(StrategyOnDotsAnimation, self).__init__()
+        kwargs.setdefault('color', 'red')
+        self.line, = ax.plot([], [], **kwargs)
+        self.U = U
+        self.strat_history = strat_history
+        self.loc_history = loc_history
+        self.max_val=max_val
+
+    def init(self):
+        self.line.set_data([], [])
+
+    def animate(self, i):
+        self.line.set_data(
+            self.loc_history[i]+self.U,
+            self.strat_history[i]/np.max(self.strat_history[i])*self.max_val
+        )
+
+
 class FrameCounter(AnimationComponent):
     """Wrapper for the animated dots"""
     def __init__(self, ax, max_frames=None, *args, **kwargs):
