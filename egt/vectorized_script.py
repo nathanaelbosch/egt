@@ -21,7 +21,7 @@ from egt.alternative_J import myJ_vectorized
 ###############################################################################
 # Parameters
 ###############################################################################
-_plot_range = np.arange(-7, 7, 0.01)
+_plot_range = np.arange(-10, 10, 0.01)
 # Discretization of the strategies
 _strategy_resolution = 0.01
 epsilon = 0
@@ -34,13 +34,16 @@ DEFAULT_PARAMS = {
         0.3 * (np.abs(x)+5) * np.sin(10*x)),
     'alpha': 2,
     'beta': 10000,
-    'gamma': 'adaptive',
-    'gamma_max': 0.6,
-    # 'gamma': 10,
-    'delta_t': 1,
-    's_rounds': 20,
-    'total_steps': int(20*60),
+    'gamma': 0.9,
+    'h': 0.1,
+    's_rounds': 1,
+    'reweighted_delta': True,
+    'total_steps': int(5*60*60),
+    'myJ': True,
 }
+
+if DEFAULT_PARAMS['reweighted_delta']:
+    assert DEFAULT_PARAMS['gamma']*DEFAULT_PARAMS['h'] < 1, 'Stepsize too large!'
 
 
 def get_starting_locations():
@@ -53,7 +56,7 @@ def get_starting_locations():
     # starting_locations = [1, 2, 3, 4]
 
     # Szenario 3: N random particles
-    N = 5
+    N = 10
     starting_locations = np.random.uniform(0, 20, N)
     # starting_locations[-3:] = [-20, -50, 3]
 
@@ -88,14 +91,12 @@ U[standing_index] = 0
 # Ud = np.stack(np.meshgrid(*([U]*d))).reshape((3, -1)).T
 
 
-# # Initial mixed strategy - continuous:
-# epsilon = 1e-10
+# Initial mixed strategy - continuous:
 with np.errstate(divide='ignore'):
     sigma = np.exp(-1/(1-(U**2)))
-    # sigma = np.exp(-1/(1+epsilon-(U**2)))
 sigma = sigma / np.sum(sigma)
 # Alternative initial mixed strategy: Uniform
-# sigma = np.array([1]*len(U)) / len(U)
+sigma = np.array([1]*len(U)) / len(U)
 
 
 def create_initial_population(points):
@@ -160,31 +161,31 @@ def J_vectorized(locations, **kwargs):
     N, d = locations.shape
 
     f_vals = f(locations)
-    assert len(f_vals) == N
+    assert len(f_vals) == N, 'f is not suited for higher-dimensional stuff'
     f_vals = f_vals.flatten()
     f_diffs = np.tile(f_vals, reps=(N, 1)).T - np.tile(f_vals, reps=(N, 1))
-    # f_diffs = f_diffs[range(N), ]
     f_diffs_tanh = np.tanh(3*f_diffs)
     f_diffs_tanh_positive = np.where(
         f_diffs_tanh > 0,
         f_diffs_tanh,
         0)
 
-    # Walk dirs should be a NxNxd array, containing xj-xi at location [i, j]
+    # Walk dirs should be a NxNxd array, containing xj-xi at location [i, j, :]
     walk_dirs = (np.tile(locations[None, :, :], (N, 1, 1)) -
                  np.tile(locations[:, None, :], (1, N, 1)))
 
-    # walk_dirs = np.tile(locations, reps=(N, 1)) - np.tile(locations, reps=(N, 1)).T
     walk_dirs_adj = f_diffs_tanh_positive[:, :, None] * walk_dirs
 
-    # Multi dimensionality does not work here anymore!!!
+    ##############################################################
+    # Multi dimensionality does not yet work, starting from here #
+    ##############################################################
     walk_dirs_adj = walk_dirs_adj.reshape(N, N)
     walk_dirs = walk_dirs.reshape(N, N)
-    # variance = (np.abs(walk_dirs) ** alpha +
-    #             np.abs(f_diffs) ** alpha)
-    variance = (np.abs(walk_dirs) ** alpha)
+    variance = (np.abs(walk_dirs) ** alpha +
+                np.abs(f_diffs) ** alpha)
+    # variance = (np.abs(walk_dirs) ** alpha)
 
-    # Make things stable: for x=x2, depending on if u==0
+    # Make things stable for x=x2
     problems = np.array([
         [np.all(locations[i] == locations[j]) for j in range(N)]
         for i in range(N)])
@@ -194,53 +195,14 @@ def J_vectorized(locations, **kwargs):
 
     out = np.exp(-1 * upper_side / variance[:, :, None])
 
-    # with np.errstate(divide='ignore'):
-    #     out = np.exp(
-    #         -1 * ((U.reshape(1, 1, len(U)) - walk_dirs_adj[:, :, None])**2) /
-    #         variance[:, :, None])
-
-    # Points should not be compared to themselves!
+    # Set the "problems" to the values they should contain (by analysis of J)
     out[problems] = 0
     out[problems, standing_index] = 1
-
-    # out[range(N), range(N)] = 0
-
-    # out *= np.exp(-beta * f_vals)[None, :, None]
 
     return out
 
 
 def default_magnet(tot_J, locations, **kwargs):
-    params = DEFAULT_PARAMS.copy()
-    params.update(kwargs)
-    f = params.get('f')
-    beta = params.get('beta')
-
-    N, d = locations.shape
-
-    # Reweighting
-    f_vals = f(locations).flatten()
-    f_min_index = f_vals.argmin()
-    f_second_min_index = np.delete(f_vals, f_min_index).argmin()
-    if f_second_min_index >= f_min_index:
-        f_second_min_index += 1
-
-    f_value_matrix = np.tile(f_vals, (N, 1))
-    mins = np.array(
-        [f_vals[f_min_index]] * f_min_index +
-        [f_vals[f_second_min_index]] +
-        [f_vals[f_min_index]] * (N-f_min_index-1))
-
-    f_value_matrix = np.tile(f_vals, (N, 1))
-    f_value_matrix -= mins[:, None]
-    # f_value_matrix -= mins[:, None]
-    np.fill_diagonal(f_value_matrix, 0)
-    weights = np.exp(-beta*f_value_matrix)
-    np.fill_diagonal(weights, 0)
-    return weights
-
-
-def my_magnet(tot_J, locations, **kwargs):
     params = DEFAULT_PARAMS.copy()
     params.update(kwargs)
     f = params.get('f')
@@ -299,10 +261,10 @@ def simulate(initial_population, J_vectorized, **kwargs):
     params.update(kwargs)
     s_rounds = params.get('s_rounds')
     total_steps = params.get('total_steps')
-    _gamma = params.get('gamma')
-    gamma_max = params.get('gamma_max')
+    gamma = params.get('gamma')
+    reweighted_delta = params.get('reweighted_delta')
 
-    delta_t = params.get('delta_t')
+    h = params.get('h')
 
     locations, strategies = initial_population
     N, d = locations.shape
@@ -315,19 +277,15 @@ def simulate(initial_population, J_vectorized, **kwargs):
     for i in sim_bar:
         # Strategy updates
         for s in range(s_rounds):
-            # Formula: sigma = (1 + delta_t * gamma * delta) * sigma
+            # Formula: sigma = (1 + h * gamma * delta) * sigma
 
             # All possible calls of J, in a single array, but without the diag
             delta = replicator_dynamics(locations, strategies, **kwargs)
 
-            if _gamma == 'adaptive':
-                min_delta = np.min(delta, axis=1)
-                gamma = -gamma_max/delta_t/min_delta
-                gamma = gamma[:, None]
-            else:
-                gamma = _gamma
+            if reweighted_delta:
+                delta = - delta / delta.min(axis=1)[:, None]
 
-            strategies *= (1 + gamma * delta_t * delta)
+            strategies *= (1 + h * gamma * delta)
             # import pdb; pdb.set_trace()
 
             prob_sums = strategies.sum(axis=1)
@@ -339,22 +297,26 @@ def simulate(initial_population, J_vectorized, **kwargs):
         for j in range(N):
             random_u_index = np.random.choice(
                 len(U), p=strategies[j].flatten())
-            locations[j] += delta_t*U[random_u_index]
+            locations[j] += h*U[random_u_index]
 
         history.append((locations.copy(), strategies.copy()))
 
         # Break condition for early stopping
         max_dist = (max(locations) - min(locations))[0]
-        max_prob_to_stay = strategies[:, standing_index].max()
+        max_staying_uncertainty = 1 - strategies[:, standing_index].min()
         # logging.debug(f'Max distance: {max_dist}')
         sim_bar.set_description(
-            '[Simulation] max_dist={:.3f}'.format(max_dist))
-        if max_dist < 1e-2 and max_prob_to_stay > 1 - 1e-15:
+            '[Simulation] max_dist={:.3f} staying_uncertainty={:.2E}'.format(
+                max_dist, max_staying_uncertainty))
+        if max_dist < 1e-2 and max_staying_uncertainty < 1e-10:
             logging.info('Early stopping thanks to our rule!')
+            break
+        if max_staying_uncertainty == 0.0:
+            logging.info('Early stopping! No point wants to move anymore')
             break
 
     logging.info(f'Max distance at the end: {max_dist}')
-    logging.info(f'Max "staying-uncertainty": {max_prob_to_stay}')
+    logging.info(f'Max "staying-uncertainty": {max_staying_uncertainty}')
 
     return history
 
@@ -367,7 +329,9 @@ def main():
 
     starting_locations = get_starting_locations()
     population = create_initial_population(starting_locations)
-    history = simulate(population, J_vectorized)
+
+    J_used = myJ_vectorized if DEFAULT_PARAMS['myJ'] else J_vectorized
+    history = simulate(population, J_used)
     # import pdb; pdb.set_trace()
 
     # Create animation
