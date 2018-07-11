@@ -6,7 +6,8 @@ from abc import ABC, abstractmethod
 
 
 from egt.animation import (
-    Animation, DotsAnimation, StrategyAnimation, FrameCounter)
+    Animation, DotsAnimation, StrategyAnimation, FrameCounter,
+    StrategyOnDotsAnimation)
 
 
 TUM_COLORS = {
@@ -82,12 +83,25 @@ def graph_visualization(
     anim_handler.register(DotsAnimation(
         ax=ax,
         f=f,
-        x_locations=[pop[:, 0] for pop in history],
+        x_locations=[loc for loc, strat in history],
         color='red'))
     anim_handler.register(FrameCounter(ax=ax, max_frames=len(history)))
+    last_locs, last_strats = history[-1]
+    strat_index = np.argmin(last_locs)
+    anim_handler.register(StrategyOnDotsAnimation(
+        ax=ax,
+        U=U,
+        loc_history=[loc[strat_index] for loc, strat in history],
+        strat_history=[strat[strat_index] for loc, strat in history],
+        max_val=20))
     plt.tight_layout()
 
-    return anim_handler.generate(frames=len(history))
+    max_len = 3600
+    if len(history) > max_len:
+        frames = range(0, len(history), len(history)//max_len)
+    else:
+        frames = len(history)
+    return anim_handler.generate(frames=frames)
 
 
 def full_visualization(
@@ -120,7 +134,8 @@ def full_visualization(
     """
     # Only use this if we have few enough points for it to be useful
     colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown']
-    n_points = history[0].shape[0]
+    start_locs, start_strats = history[0]
+    n_points = start_locs.shape[0]
     if n_points > len(colors):
         return graph_visualization(history, f, U, plot_range, parameter_text)
 
@@ -152,7 +167,7 @@ def full_visualization(
             DotsAnimation(
                 ax=ax_function_graph,
                 f=f,
-                x_locations=[pop[i, 0] for pop in history],
+                x_locations=[loc[i] for loc, strat in history],
                 color=colors[i]))
 
     # Strategy Plots
@@ -163,7 +178,7 @@ def full_visualization(
             StrategyAnimation(
                 ax=ax,
                 U=U,
-                strat_history=[pop[i, 1:] for pop in history],
+                strat_history=[strat[i] for pop, strat in history],
                 color=colors[i])
         )
 
@@ -173,7 +188,12 @@ def full_visualization(
     # A E S T H E T I C S
     plt.tight_layout()
 
-    return anim_handler.generate(frames=len(history))
+    max_len = 3600
+    if len(history) > max_len:
+        frames = range(0, len(history), len(history)//max_len)
+    else:
+        frames = len(history)
+    return anim_handler.generate(frames=frames)
 
 
 def plot_2d(
