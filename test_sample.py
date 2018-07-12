@@ -2,33 +2,26 @@
 
 Single file, as there will probably not be much testing necessary"""
 import numpy as np
-from egt.vectorized_script import *
-from egt.alternative_J import myJ, myJ_vectorized
+
+from egt.vectorized_script import f, U, create_initial_population
+from egt.original_J import OriginalJ
+from egt.alternative_J import MyJ
+
+
+starting_locations = np.linspace(-10, 10, 5)
 
 
 def test_J():
-    starting_locations = get_starting_locations()
-    N = len(starting_locations)
     locations, strategies = create_initial_population(starting_locations)
-    out = J_vectorized(locations)
-    old = out.copy()
-    for i in range(N):
-        for j in range(N):
-            for k in range(len(U)):
-                old[i, j, k] = J(
-                    locations[i], U[k], locations[j])
+    J = OriginalJ(f, U)
+    out = J._vectorized(locations)
+    old = J._badly_vectorized(locations)
     assert np.all(old == out)
 
 
-def test_myJ():
-    starting_locations = get_starting_locations()
-    N = len(starting_locations)
+def test_MyJ():
     locations, strategies = create_initial_population(starting_locations)
-    out = myJ_vectorized(locations)
-    old = out.copy()
-    for i in range(N):
-        for j in range(N):
-            for k in range(len(U)):
-                old[i, j, k] = myJ(
-                    locations[i], U[k], locations[j])
+    J = MyJ(f, U)
+    out = J._vectorized(locations)
+    old = J._badly_vectorized(locations)
     assert np.all(old == out)
