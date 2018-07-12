@@ -1,7 +1,3 @@
-- Understand J
-- Understand numerical instability from beta
-- Fix numerical instability
-    - Think about adaptive ways to handle this
-
-
 - 2D
+- Update readme to show the new argparse stuff and bin/run
+- restructure files into meaningful folders
