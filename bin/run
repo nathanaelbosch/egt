@@ -1,0 +1,14 @@
+#!/usr/bin/bash
+
+python -m egt.main \
+    --max-iterations 1000 \
+    --normalize-delta \
+    --beta 1000 \
+    --gamma 0.9 \
+    --stepsize 0.1 \
+    --n-points 10 \
+    --plot-range -10 10 \
+    --point-interval -10 10 \
+    # --s-rounds 1 \
+    # --J original \
+    # --max-animation-seconds 60

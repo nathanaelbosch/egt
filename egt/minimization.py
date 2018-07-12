@@ -1,6 +1,6 @@
 """I really want to clean up my script
 
-Passing kwargs and parameters around is super error-prone
+Passing kwargs and parameters around leads to quite some errors.
 """
 import numpy as np
 import logging
@@ -9,6 +9,7 @@ import tqdm
 
 def minimize(f, J_class, initial_population, U, parameters):
     """Run the WHOLE simulation
+
 
     Parameters
     ----------
@@ -28,10 +29,10 @@ def minimize(f, J_class, initial_population, U, parameters):
     #   b. Location updates
     beta = parameters['beta']
     gamma = parameters['gamma']
-    h = parameters['h']
-    total_steps = parameters['total_steps']
+    stepsize = parameters['stepsize']
+    max_iterations = parameters['max_iterations']
     s_rounds = parameters['s_rounds']
-    reweighted_delta = parameters['reweighted_delta']
+    normalize_delta = parameters['normalize_delta']
 
     standing_index = np.where(np.isclose(U, 0))[0][0]
 
@@ -89,19 +90,19 @@ def minimize(f, J_class, initial_population, U, parameters):
     history.append((locations.copy(), strategies.copy()))
 
     logging.info('Start simulation')
-    sim_bar = tqdm.trange(total_steps)
+    sim_bar = tqdm.trange(max_iterations)
     for i in sim_bar:
         # Strategy updates
         for s in range(s_rounds):
-            # Formula: sigma = (1 + h * gamma * delta) * sigma
+            # Formula: sigma = (1 + stepsize * gamma * delta) * sigma
 
             # All possible calls of J, in a single array, but without the diag
             delta = replicator_dynamics((locations, strategies))
 
-            if reweighted_delta:
+            if normalize_delta:
                 delta = - delta / delta.min(axis=1)[:, None]
 
-            strategies *= (1 + h * gamma * delta)
+            strategies *= (1 + stepsize * gamma * delta)
             # import pdb; pdb.set_trace()
 
             prob_sums = strategies.sum(axis=1)
@@ -113,7 +114,7 @@ def minimize(f, J_class, initial_population, U, parameters):
         for j in range(N):
             random_u_index = np.random.choice(
                 len(U), p=strategies[j].flatten())
-            locations[j] += h*U[random_u_index]
+            locations[j] += stepsize*U[random_u_index]
 
         history.append((locations.copy(), strategies.copy()))
 
