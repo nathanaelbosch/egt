@@ -1,23 +1,22 @@
-"""
-Difference to first script: Optimize code, make it run faster!
-- Data in a nicer way than lists
-- Function to be applied to the whole array in the best possible way
+"""Run a minimization
+
+The actual logic is in `egt/minimization.py`. This here handles parameters,
+command line arguments, calls visualization, and saves the animation if
+wanted.
+
 """
 import numpy as np
 import matplotlib.pyplot as plt
-import tqdm
 import random
 import argparse
 import logging
 logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(level=logging.DEBUG)
-# tqdm.monitor_interval = 0
 
 import egt.visualisation as vis
 from egt.original_J import OriginalJ
 from egt.alternative_J import MyJ
-# from egt.alternative_J import myJ_vectorized
-# from egt.confidence_J import confidenceJ_vectorized
+from egt.minimization import minimize
 
 
 ###############################################################################
@@ -30,21 +29,17 @@ U_range = (-1, 1)
 epsilon = 0
 
 DEFAULT_PARAMS = {
-    # 'f': lambda x: x**2 + 0.5*np.sin(30*x),
-    # 'f': lambda x: x**2,
-    'f': lambda x: (
-        (((x-2)**2 * (x+2)**2 + 10*x) / (x**2 + 1)) +
-        0.3 * (np.abs(x)+5) * np.sin(10*x)),
     'alpha': 2,
     'beta': 1000,
-    # 'gamma': 0.9,
     'gamma': 0.9,
     'h': 0.1,
     's_rounds': 1,
     'reweighted_delta': True,
     'total_steps': int(2*60*60),
-    'MyJ': True,
+    'MyJ': False,
 }
+
+
 def f(x):
     return (((x-2)**2 * (x+2)**2 + 10*x) / (x**2 + 1) +
             0.3 * (np.abs(x)+5) * np.sin(10*x))
@@ -82,9 +77,6 @@ def parse_args():
     parser.add_argument(
         '-s', '--seed', type=int,
         help='Random seed for numpy')
-    # parser.add_argument(
-    #     '-f', '--function', type=str,
-    #     help='Function to minimize. Write as functional python code')
     return parser.parse_args()
 
 
@@ -106,150 +98,28 @@ standing_index = np.where(np.isclose(U, 0))[0][0]
 
 
 # Initial mixed strategy - continuous:
-with np.errstate(divide='ignore'):
-    sigma = np.exp(-1/(1-(U**2)))
-sigma = sigma / np.sum(sigma)
-# Alternative initial mixed strategy: Uniform
-sigma = np.array([1]*len(U)) / len(U)
 
 
-def create_initial_population(points):
+def create_initial_population(points, U, strategy_distribution='uniform'):
     # Initial population: Now as a matrix. First col location, rest mixed strategy
     N = len(points)
     d = len(points[0]) if isinstance(points[0], tuple) else 1
+
+    if strategy_distribution == 'uniform':
+        sigma = np.array([1]*len(U)) / len(U)
+    else:
+        with np.errstate(divide='ignore'):
+            sigma = np.exp(-1/(1-(U**2)))
+        sigma = sigma / np.sum(sigma)
+
     locations = np.array(points).reshape(N, d)
     strategies = np.tile(sigma.flatten(), (len(points), 1))
-
-    # population = np.concatenate(
-    #     (np.array(starting_locations).reshape((len(starting_locations), 1)),
-    #      np.tile(sigma, (len(starting_locations), 1))),
-    #     axis=1)
 
     population = (locations, strategies)
     logging.debug('Starting population:')
     logging.debug(population)
 
     return population
-
-
-def default_magnet(tot_J, locations, **kwargs):
-    params = DEFAULT_PARAMS.copy()
-    params.update(kwargs)
-    f = params.get('f')
-    beta = params.get('beta')
-
-    N, d = locations.shape
-
-    # Reweighting
-    f_vals = f(locations).flatten()
-    f_min_index = f_vals.argmin()
-    f_second_min_index = np.delete(f_vals, f_min_index).argmin()
-    if f_second_min_index >= f_min_index:
-        f_second_min_index += 1
-
-    f_value_matrix = np.tile(f_vals, (N, 1))
-    mins = np.array(
-        [f_vals[f_min_index]] * f_min_index +
-        [f_vals[f_second_min_index]] +
-        [f_vals[f_min_index]] * (N-f_min_index-1))
-
-    f_value_matrix = np.tile(f_vals, (N, 1))
-    f_value_matrix -= mins[:, None]
-    # f_value_matrix -= mins[:, None]
-    np.fill_diagonal(f_value_matrix, 0)
-    weights = np.exp(-beta*f_value_matrix)
-    np.fill_diagonal(weights, 0)
-    return weights
-
-
-def replicator_dynamics(locations, strategies, J_vectorized, **kwargs):
-    N, d = locations.shape
-
-    tot_J = J_vectorized(locations, **kwargs)
-    tot_J[range(N), range(N)] = 0  # Don't compare points to themselves
-
-    weights = default_magnet(tot_J, locations, **kwargs)
-
-    mean_outcomes = np.sum(tot_J * strategies[:, None, :], axis=2)
-    delta = np.sum(
-        weights[:, :, None] * (
-            tot_J - mean_outcomes[:, :, None]),
-        axis=1) / np.sum(weights, axis=1)[:, None]
-
-    return delta
-
-
-def simulate(initial_population, J_vectorized, **kwargs):
-    """Simulates the game J_vectorized with the given starting population
-
-    J_vectorized is a vectorized version, such as J_vectorized
-
-    Returns the full history of locations and strategies
-    """
-    # Get parameters
-    params = DEFAULT_PARAMS.copy()
-    params.update(kwargs)
-    s_rounds = params.get('s_rounds')
-    total_steps = params.get('total_steps')
-    gamma = params.get('gamma')
-    reweighted_delta = params.get('reweighted_delta')
-
-    h = params.get('h')
-
-    locations, strategies = initial_population
-    N, d = locations.shape
-
-    history = []
-    history.append((locations.copy(), strategies.copy()))
-
-    logging.info('Start simulation')
-    sim_bar = tqdm.trange(total_steps)
-    for i in sim_bar:
-        # Strategy updates
-        for s in range(s_rounds):
-            # Formula: sigma = (1 + h * gamma * delta) * sigma
-
-            # All possible calls of J, in a single array, but without the diag
-            delta = replicator_dynamics(
-                locations, strategies, J_vectorized, **kwargs)
-
-            if reweighted_delta:
-                delta = - delta / delta.min(axis=1)[:, None]
-
-            strategies *= (1 + h * gamma * delta)
-            # import pdb; pdb.set_trace()
-
-            prob_sums = strategies.sum(axis=1)
-            if np.any(prob_sums != 1) and np.all(np.isclose(prob_sums, 1)):
-                # Numerical problems, but otherwise should be fine - Reweight
-                strategies /= prob_sums[:, None]
-
-        # Location updates
-        for j in range(N):
-            random_u_index = np.random.choice(
-                len(U), p=strategies[j].flatten())
-            locations[j] += h*U[random_u_index]
-
-        history.append((locations.copy(), strategies.copy()))
-
-        # Break condition for early stopping
-        max_dist = (max(locations) - min(locations))[0]
-        max_staying_uncertainty = 1 - strategies[:, standing_index].min()
-        # logging.debug(f'Max distance: {max_dist}')
-        sim_bar.set_description(
-            '[Simulation] max_dist={:.3f} staying_uncertainty={:.2E}'.format(
-                max_dist, max_staying_uncertainty))
-        if max_dist < 1e-2 and max_staying_uncertainty < 1e-10:
-            logging.info('Early stopping thanks to our rule!')
-            break
-        if max_staying_uncertainty == 0.0:
-            logging.info('Early stopping! No point wants to move anymore')
-            break
-
-    logging.info(f'Max distance at the end: {max_dist}')
-    logging.info(f'Max "staying-uncertainty": {max_staying_uncertainty}')
-
-    return history
 
 
 def main():
@@ -259,12 +129,15 @@ def main():
     np.random.seed(seed)
 
     starting_locations = get_starting_locations()
-    population = create_initial_population(starting_locations)
+    population = create_initial_population(starting_locations, U)
 
     J_used = MyJ if DEFAULT_PARAMS['MyJ'] else OriginalJ
+
+    history = minimize(f, J_used, population, U, DEFAULT_PARAMS)
+
     # J_used = confidence_J
-    J = J_used.get(f, U)
-    history = simulate(population, J)
+    # J = J_used.get(f, U)
+    # history = simulate(population, J)
     # import pdb; pdb.set_trace()
 
     # Create animation
@@ -273,7 +146,7 @@ def main():
         [f'n_points: {len(starting_locations)}'] +
         [f'{p}: {DEFAULT_PARAMS[p]}'for p in params_to_show])
     anim = vis.full_visualization(
-        history, DEFAULT_PARAMS['f'], U,
+        history, f, U,
         plot_range=_plot_range,
         parameter_text=text)
     if args.save:
