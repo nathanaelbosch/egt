@@ -23,6 +23,8 @@ from egt.original_J import OriginalJ
 from egt.alternative_J import MyJ
 from egt.minimization import minimize
 
+from egt.test_functions import ackley, easom
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -86,6 +88,9 @@ def parse_args():
 def f(x):
     return (((x-2)**2 * (x+2)**2 + 10*x) / (x**2 + 1) +
             0.3 * (np.abs(x)+5) * np.sin(10*x))
+
+f = ackley
+f = easom
 
 
 def main():
