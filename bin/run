@@ -9,6 +9,7 @@ python -m egt.main \
     --n-points 10 \
     --plot-range -10 10 \
     --point-interval -10 10 \
+    --initial-strategy standard \
+    --my-j \
     # --s-rounds 1 \
-    # --J original \
     # --max-animation-seconds 60
