@@ -125,9 +125,9 @@ def minimize(f, J_class, initial_population, U, parameters):
         sim_bar.set_description(
             '[Simulation] max_dist={:.3f} staying_uncertainty={:.2E}'.format(
                 max_dist, max_staying_uncertainty))
-        if max_dist < 1e-2 and max_staying_uncertainty < 1e-10:
-            logging.info('Early stopping thanks to our rule!')
-            break
+        # if max_dist < 1e-2 and max_staying_uncertainty < 1e-10:
+        #     logging.info('Early stopping thanks to our rule!')
+        #     break
         if max_staying_uncertainty == 0.0:
             logging.info('Early stopping! No point wants to move anymore')
             break

@@ -6,12 +6,6 @@ def positive(x):
     return (np.abs(x) + x)/2
 
 
-def J_original(x, u, x2, **kwargs):
-    """J as described by Massimo"""
-    alpha = kwargs.get('alpha', DEFAULT_PARAMS.get('alpha'))
-    f = kwargs.get('f', DEFAULT_PARAMS.get('f'))
-    with np.errstate(divide='ignore'):
-        out = np.exp(
-            -((u - positive(np.tanh(3*(f(x) - f(x2)))) * (x2 - x))**2) /
-            ((x-x2) ** alpha + (f(x) - f(x2)) ** alpha))
-    return out
+def sigmoid(x):
+    with np.errstate(over='ignore'):
+        return 1 / (1 + np.exp(-x))

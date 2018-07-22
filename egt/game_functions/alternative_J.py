@@ -1,6 +1,6 @@
 import numpy as np
 
-from egt.game_template import J_template
+from .game_template import J_template
 
 
 class MyJ(J_template):

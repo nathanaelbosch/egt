@@ -47,7 +47,7 @@ def graph_visualization(
         U,
         plot_range=np.arange(-3, 3, 0.001),
         parameter_text='',
-        max_len=30*60):
+        max_len=10*60):
     """Animation of the graph of the function and dots moving over it
 
     Parameters
@@ -110,7 +110,7 @@ def full_visualization(
         U,
         plot_range=np.arange(-3, 3, 0.001),
         parameter_text='',
-        max_len=30*60):
+        max_len=10*60):
     """Animation
 
     Complete visualization of the process:

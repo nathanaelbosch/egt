@@ -1,7 +1,7 @@
 import numpy as np
 
-from egt.tools import positive
-from egt.game_template import J_template
+from egt.tools import positive, sigmoid
+from .game_template import J_template
 
 
 class OriginalJ(J_template):
@@ -45,6 +45,7 @@ class OriginalJ(J_template):
             f_diffs_tanh > 0,
             f_diffs_tanh,
             0)
+        f_diffs_tanh_positive = sigmoid(100*f_diffs)
 
         # Walk dirs should be a NxNxd array, containing xj-xi at location [i, j, :]
         walk_dirs = (np.tile(locations[None, :, :], (N, 1, 1)) -
@@ -57,9 +58,9 @@ class OriginalJ(J_template):
         ##############################################################
         walk_dirs_adj = walk_dirs_adj.reshape(N, N)
         walk_dirs = walk_dirs.reshape(N, N)
-        # variance = (np.abs(walk_dirs) ** alpha +
-        #             np.abs(f_diffs) ** alpha)
-        variance = (np.abs(walk_dirs) ** self.alpha)
+        variance = (np.abs(walk_dirs) ** self.alpha +
+                    np.abs(f_diffs) ** self.alpha)
+        # variance = (np.abs(walk_dirs) ** self.alpha)
 
         # Make things stable for x=x2
         problems = np.array([
