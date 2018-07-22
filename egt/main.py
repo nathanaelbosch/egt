@@ -19,10 +19,11 @@ logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(level=logging.DEBUG)
 
 import egt.visualisation as vis
-from egt.original_J import OriginalJ
-from egt.alternative_J import MyJ
+from egt.game_functions.original_J import OriginalJ
+from egt.game_functions.alternative_J import MyJ
+# from egt.game_functions.confidence_J import ConfidenceJ
 from egt.minimization import minimize
-
+from egt.convergence_analysis import func
 from egt.test_functions import ackley, easom
 
 
@@ -79,8 +80,7 @@ def parse_args():
 
     args = parser.parse_args()
 
-    if args.normalize_delta:
-        assert args.gamma*args.stepsize < 1, 'Stepsize too large!'
+    assert args.gamma*args.stepsize <= 1, 'Stepsize too large!'
 
     return args
 
@@ -89,8 +89,11 @@ def f(x):
     return (((x-2)**2 * (x+2)**2 + 10*x) / (x**2 + 1) +
             0.3 * (np.abs(x)+5) * np.sin(10*x))
 
-f = ackley
-f = easom
+# f = ackley
+# f = easom
+
+
+
 
 
 def main():
@@ -158,7 +161,13 @@ def main():
             f'examples/{text}_{seed}.mp4',
             fps=60)
     else:
-        plt.show()
+        # plt.show()
+        pass
+
+    ###########################################################################
+    # 4. Analyze Convergence behaviour
+    func(history, f)
+    
 
 
 if __name__ == '__main__':
