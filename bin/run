@@ -3,7 +3,7 @@
 python -m egt.main \
     --max-iterations 10000 \
     --beta 10000 \
-    --gamma 9 \
+    --gamma 0.9 \
     --stepsize 0.01 \
     --n-points 50 \
     --plot-range -10 10 \
