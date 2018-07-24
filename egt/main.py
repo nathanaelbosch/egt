@@ -23,8 +23,9 @@ from egt.game_functions.original_J import OriginalJ
 from egt.game_functions.alternative_J import MyJ
 # from egt.game_functions.confidence_J import ConfidenceJ
 from egt.minimization import minimize
-from egt.convergence_analysis import func
-from egt.test_functions import ackley, easom
+import egt.carillo as carillo
+import egt.convergence_analysis as convergence_analysis
+from egt.test_functions import *
 
 
 def parse_args():
@@ -32,6 +33,9 @@ def parse_args():
     parser.add_argument(
         '--save', action='store_true',
         help='Save the animation')
+    parser.add_argument(
+        '--carillo', action='store_true',
+        help='Use the carillo minimization technique')
     parser.add_argument(
         '-s', '--seed', type=int,
         help='Random seed for numpy')
@@ -69,6 +73,9 @@ def parse_args():
         '--stepsize', type=float, default=0.1,
         help='Stepsize - Influences both strategy and location update')
     parser.add_argument(
+        '--max-animation-seconds', type=int, default=10,
+        help='Maximum time of the resulting animation, in seconds')
+    parser.add_argument(
         '--normalize-delta', action='store_true',
         help='aka "adaptive stepsize" - highly recommended!')
     parser.add_argument(
@@ -85,10 +92,9 @@ def parse_args():
     return args
 
 
-def f(x):
-    return (((x-2)**2 * (x+2)**2 + 10*x) / (x**2 + 1) +
-            0.3 * (np.abs(x)+5) * np.sin(10*x))
 
+f = two_wells
+f = simple_nonconvex_function
 # f = ackley
 # f = easom
 
@@ -141,33 +147,55 @@ def main():
 
     ###########################################################################
     # 2. Run Minimize
-    history = minimize(f, J_used, population, U, vars(args))
+    if args.carillo:
+        history = carillo.minimize(f, population, vars(args))
+    else:
+        history = minimize(f, J_used, population, U, vars(args))
 
     ###########################################################################
     # 3. Visualize
-    params_to_show = ['beta', 'gamma', 's_rounds']
-    text = '\n'.join(
+    params_to_show = ['beta', 'gamma', 's_rounds', 'stepsize']
+    # params_to_show = ['beta', 'gamma', 'stepsize']
+    parameter_text = '\n'.join(
         [f'n_points: {N}'] +
         [f'{p}: {vars(args)[p]}'for p in params_to_show])
     plot_range = np.linspace(args.plot_range[0], args.plot_range[1], 1000)
-    anim = vis.full_visualization(
-        history, f, U,
-        plot_range=plot_range,
-        parameter_text=text)
-    if args.save:
-        logging.info('Saving animation, this might take a while')
-        text = '_'.join([f'{p}{vars(args)[p]}'for p in params_to_show])
-        anim.save(
-            f'examples/{text}_{seed}.mp4',
-            fps=60)
-    else:
-        # plt.show()
-        pass
+
+    # Need this weird construct
+    for i in range(2):
+        anim = vis.full_visualization(
+            history, f, U,
+            plot_range=plot_range,
+            parameter_text=parameter_text,
+            max_len=args.max_animation_seconds*60)
+        if i==0:
+            plt.show()
+
+            response = input('Save plot? [y/N]')
+            if response.lower().startswith('y'):
+                continue
+            else:
+                break
+        elif i==1:
+            text = input('Name?')
+            logging.info('Saving animation, this might take a while')
+            # text = '_'.join([f'{p}{vars(args)[p]}'for p in params_to_show])
+            anim.save(
+                f'examples/{text}_{seed}.mp4',
+                fps=60)
 
     ###########################################################################
     # 4. Analyze Convergence behaviour
-    func(history, f)
-    
+    if not (f == simple_nonconvex_function):
+        return
+    ax = convergence_analysis.visualize(history, f)
+    fig = ax.get_figure()
+    # g = convergence_analysis.visualize(history, f)
+    plt.show()
+    if 'text' in locals():
+        path = f'examples/{text}_{seed}_fvalue.png'
+        fig.savefig(path)
+        # g.savefig(path)
 
 
 if __name__ == '__main__':

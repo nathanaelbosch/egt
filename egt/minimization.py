@@ -121,13 +121,12 @@ def minimize(f, J_class, initial_population, U, parameters):
         # Break condition for early stopping
         max_dist = (max(locations) - min(locations))[0]
         max_staying_uncertainty = 1 - strategies[:, standing_index].min()
-        # logging.debug(f'Max distance: {max_dist}')
+        mean_value = np.mean(f(locations))
         sim_bar.set_description(
-            '[Simulation] max_dist={:.3f} staying_uncertainty={:.2E}'.format(
-                max_dist, max_staying_uncertainty))
-        # if max_dist < 1e-2 and max_staying_uncertainty < 1e-10:
-        #     logging.info('Early stopping thanks to our rule!')
-        #     break
+            ('[Simulation] max_dist={:.3f} ' +
+             'staying_uncertainty={:.2E} ' +
+             'mean_value={:.2f}').format(
+                max_dist, max_staying_uncertainty, mean_value))
         if max_staying_uncertainty == 0.0:
             logging.info('Early stopping! No point wants to move anymore')
             break

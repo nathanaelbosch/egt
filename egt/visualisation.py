@@ -87,14 +87,14 @@ def graph_visualization(
         x_locations=[loc for loc, strat in history],
         color='red'))
     anim_handler.register(FrameCounter(ax=ax, max_frames=len(history)))
-    last_locs, last_strats = history[-1]
-    strat_index = np.argmin(last_locs)
-    anim_handler.register(StrategyOnDotsAnimation(
-        ax=ax,
-        U=U,
-        loc_history=[loc[strat_index] for loc, strat in history],
-        strat_history=[strat[strat_index] for loc, strat in history],
-        max_val=20))
+    # last_locs, last_strats = history[-1]
+    # strat_index = np.argmin(last_locs)
+    # anim_handler.register(StrategyOnDotsAnimation(
+    #     ax=ax,
+    #     U=U,
+    #     loc_history=[loc[strat_index] for loc, strat in history],
+    #     strat_history=[strat[strat_index] for loc, strat in history],
+    #     max_val=20))
     plt.tight_layout()
 
     if len(history) > max_len:
@@ -139,7 +139,8 @@ def full_visualization(
     start_locs, start_strats = history[0]
     n_points = start_locs.shape[0]
     if n_points > len(colors):
-        return graph_visualization(history, f, U, plot_range, parameter_text)
+        return graph_visualization(
+            history, f, U, plot_range, parameter_text, max_len)
 
     # Layout: Upper side with the graph, bottom with the strategies
     fig = plt.figure(figsize=FIGSIZE)

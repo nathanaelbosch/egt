@@ -1,16 +1,18 @@
 #!/usr/bin/bash
 
 python -m egt.main \
-    --max-iterations 10 \
+    --max-iterations 10000 \
     --beta 10000 \
-    --gamma 10 \
+    --gamma 9 \
     --stepsize 0.01 \
-    --n-points 10 \
+    --n-points 50 \
     --plot-range -10 10 \
-    --point-interval -10 10 \
+    --point-interval 5 10 \
     --initial-strategy standard \
+    --s-rounds 1 \
+    --max-animation-seconds 10 \
     --normalize-delta \
     # --my-j \
+    # --stepsize 0.0001 \
     # --save -s 1882876050
-    # --s-rounds 1 \
     # --max-animation-seconds 60

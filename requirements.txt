@@ -4,3 +4,4 @@ tqdm
 jupyter
 pytest
 seaborn
+scipy
