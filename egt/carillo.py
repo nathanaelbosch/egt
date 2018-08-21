@@ -43,9 +43,11 @@ def minimize(f, initial_population, parameters):
 
         # Break condition for early stopping
         max_dist_from_mean = np.max(np.abs(directions))
-        sim_bar.set_description(
-            '[Simulation] max_dist={:.2E}'.format(
-                max_dist_from_mean))
+        mean_value = np.mean(f(locations))
+        sim_bar.set_description((
+            '[Simulation] max_dist={:.2E} ' +
+            'mean_value={:.2f}').format(
+                max_dist_from_mean, mean_value))
         if max_dist_from_mean < 1e-3:
             break
 
