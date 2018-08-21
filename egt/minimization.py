@@ -39,7 +39,7 @@ def minimize(f, J_class, initial_population, U, parameters):
     J_vectorized = J_class.get(f, U)
 
     locations, strategies = initial_population
-    N, d = locations.shape
+    N = locations.shape[0]
 
     ###########################################################################
     # Define Magnet and Replicator Dynamics
@@ -67,7 +67,6 @@ def minimize(f, J_class, initial_population, U, parameters):
 
     def replicator_dynamics(current_population):
         locations, strategies = current_population
-        N, d = locations.shape
 
         tot_J = J_vectorized(locations)
         tot_J[range(N), range(N)] = 0  # Don't compare points to themselves
@@ -119,7 +118,7 @@ def minimize(f, J_class, initial_population, U, parameters):
         history.append((locations.copy(), strategies.copy()))
 
         # Break condition for early stopping
-        max_dist = (max(locations) - min(locations))[0]
+        max_dist = (max(locations) - min(locations))
         max_staying_uncertainty = 1 - strategies[:, standing_index].min()
         mean_value = np.mean(f(locations))
         sim_bar.set_description(

@@ -1,11 +1,11 @@
 #!/usr/bin/bash
 
 python -m egt.main \
-    --max-iterations 10000 \
+    --max-iterations 1000 \
     --beta 10000 \
     --gamma 0.9 \
     --stepsize 0.01 \
-    --n-points 50 \
+    --n-points 5 \
     --plot-range -10 10 \
     --point-interval 5 10 \
     --initial-strategy standard \

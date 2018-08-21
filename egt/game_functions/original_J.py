@@ -27,14 +27,14 @@ class OriginalJ(J_template):
 
     def _vectorized(self, locations):
         """Idea: generate a whole NxNx#Strategies tensor with the values of J
-
         This one is actually used for computations.
-
         axis=0 the point to evaluate
         axis=1 the point to compare to
         axis=2 are the strategies
         """
-        N, d = locations.shape
+        # N, d = locations.shape
+        N = locations.shape[0]
+        locations = locations[:, None]
 
         f_vals = self.f(locations)
         assert len(f_vals) == N, 'f is not suited for higher-dimensional stuff'

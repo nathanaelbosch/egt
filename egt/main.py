@@ -22,7 +22,8 @@ import egt.visualisation as vis
 from egt.game_functions.original_J import OriginalJ
 from egt.game_functions.alternative_J import MyJ
 # from egt.game_functions.confidence_J import ConfidenceJ
-from egt.minimization import minimize
+from egt.minimization_cy import minimize
+# from egt.minimization import minimize
 import egt.carillo as carillo
 import egt.convergence_analysis as convergence_analysis
 from egt.test_functions import *
@@ -99,9 +100,6 @@ f = simple_nonconvex_function
 # f = easom
 
 
-
-
-
 def main():
     ###########################################################################
     # 1. Setup
@@ -112,7 +110,7 @@ def main():
 
     # U:
     if args.n_strategies % 2 == 0:
-        logging.warning(
+        logging.info(
             f'Use {args.n_strategies+1} instead of {args.n_strategies} strategies; ' +
             'Unpair numbers make sense here for symmetry')
         args.n_strategies += 1
@@ -121,7 +119,7 @@ def main():
             args.U_interval[0], 0, args.n_strategies//2, endpoint=False),
         np.linspace(
             0, args.U_interval[1], args.n_strategies//2 + 1, endpoint=True))
-    )[:, None]
+    )
     # Array of shape #U^d
     # Ud = np.stack(np.meshgrid(*([U]*d))).reshape((3, -1)).T
 
@@ -137,8 +135,9 @@ def main():
     points = np.random.uniform(
         args.point_interval[0], args.point_interval[1], args.n_points)
     N = len(points)
-    d = len(points[0]) if isinstance(points[0], tuple) else 1
-    locations = np.array(points).reshape(N, d)
+    # d = len(points[0]) if isinstance(points[0], tuple) else 1
+    # locations = np.array(points).reshape(N, d)
+    locations = np.array(points)
     strategies = np.tile(sigma.flatten(), (len(points), 1))
     population = (locations, strategies)
 

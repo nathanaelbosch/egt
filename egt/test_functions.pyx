@@ -1,6 +1,12 @@
+import cython
 import numpy as np
 from scipy.signal import argrelextrema
 import logging
+
+from libc.math cimport cos
+cimport numpy as np
+DTYPE = np.float64
+ctypedef np.float64_t DTYPE_t
 
 
 def ackley(x):
@@ -10,7 +16,11 @@ def ackley(x):
 
 
 def simple_nonconvex_function(x):
+    return (x**2) - 0.8 * np.cos(30*x)    
+cpdef np.ndarray simple_nonconvex_function_vect(np.ndarray x):
     return (x**2) - 0.8 * np.cos(30*x)
+cdef double simple_nonconvex_function_double(double x):
+    return (x**2) - 0.8 * cos(30*x)
 
 
 def two_wells(x):
