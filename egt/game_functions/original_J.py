@@ -1,6 +1,5 @@
 import numpy as np
 
-from egt.tools import positive, sigmoid
 from .game_template import J_template
 
 
@@ -19,7 +18,7 @@ class OriginalJ(J_template):
 
         with np.errstate(divide='ignore'):
             out = np.exp(
-                -((u - (positive(np.tanh(3*(self.f(x) - self.f(x2)))) *
+                -((u - (max(0, np.tanh(3*(self.f(x) - self.f(x2)))) *
                         (x2 - x)))**2) /
                 (np.abs(x-x2) ** self.alpha))
 
@@ -45,7 +44,7 @@ class OriginalJ(J_template):
             f_diffs_tanh > 0,
             f_diffs_tanh,
             0)
-        f_diffs_tanh_positive = sigmoid(100*f_diffs)
+        # f_diffs_tanh_positive = sigmoid(100*f_diffs)
 
         # Walk dirs should be a NxNxd array, containing xj-xi at location [i, j, :]
         walk_dirs = (np.tile(locations[None, :, :], (N, 1, 1)) -
