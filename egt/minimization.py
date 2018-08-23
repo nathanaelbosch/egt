@@ -112,9 +112,10 @@ def minimize(f, J_class, initial_population, U, parameters):
 
         # Location updates
         for j in range(N):
-            random_u_index = np.random.choice(
-                len(U), p=strategies[j].flatten())
-            locations[j] += stepsize*U[random_u_index]
+            locations[j] += strategies[j].flatten().dot(U)
+            # random_u_index = np.random.choice(
+            #     len(U), p=strategies[j].flatten())
+            # locations[j] += stepsize*U[random_u_index]
 
         history.append((locations.copy(), strategies.copy()))
 

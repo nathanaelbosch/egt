@@ -3,15 +3,15 @@
 python -m egt.main \
     --max-iterations 10000 \
     --beta 10000 \
-    --gamma 0.9 \
-    --stepsize 0.01 \
-    --n-points 50 \
+    --gamma 10 \
+    --stepsize 0.05 \
+    --n-points 100 \
     --plot-range -10 10 \
-    --point-interval 5 10 \
+    --point-interval -10 10 \
     --initial-strategy standard \
-    --s-rounds 1 \
+    --s-rounds 10 \
     --max-animation-seconds 10 \
-    --normalize-delta \
+    # --normalize-delta \
     # --my-j \
     # --stepsize 0.0001 \
     # --save -s 1882876050

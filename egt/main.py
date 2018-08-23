@@ -87,7 +87,7 @@ def parse_args():
 
     args = parser.parse_args()
 
-    assert args.gamma*args.stepsize <= 1, 'Stepsize too large!'
+    assert args.gamma*args.stepsize <= 1, 'Gamma too large! Should be <= {}'.format(1/args.stepsize)
 
     return args
 
