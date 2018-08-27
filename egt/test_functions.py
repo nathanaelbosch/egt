@@ -10,7 +10,7 @@ def ackley(x):
 
 
 def simple_nonconvex_function(x):
-    return (x**2) - 0.8 * np.cos(30*x)
+    return (x**2) - 0.8 * np.cos(30*x) + 0.8
 
 
 def two_wells(x):
@@ -20,7 +20,7 @@ def two_wells(x):
 
 def convex_hull(f, plot_range=np.arange(-100, 100, 0.001)):
     if f == simple_nonconvex_function:
-        return lambda x: x**2 - 0.8
+        return lambda x: x**2
 
     logging.info('Creating convex hull - can take a while')
     out_function = two_wells
@@ -33,7 +33,6 @@ def convex_hull(f, plot_range=np.arange(-100, 100, 0.001)):
         def new_function(x):
             if np.any(local_minima_location == x):
                 return local_minima_value[local_minima_location == x]
-
             if (np.all(local_minima_location <= x) or
                     np.all(local_minima_location >= x)):
                 return previous_function(x)
@@ -66,15 +65,10 @@ def convex_hull(f, plot_range=np.arange(-100, 100, 0.001)):
             local_minima_location,
             local_minima_value)
 
-    # Enable it to use arrays naively
-    def array_function(x):
-        if isinstance(x, np.ndarray):
-            assert len(x) == x.shape[0]
-            return [out_function(entry) for entry in x]
-        else:
-            return out_function(x)
+    # Enable it to use arrays
+    out_function = np.vectorize(out_function)
 
-    return array_function
+    return out_function
 
 
 def easom(x):
