@@ -5,7 +5,7 @@ import matplotlib.gridspec as gridspec
 from abc import ABC, abstractmethod
 
 
-from egt.animation import (
+from .animation import (
     Animation, DotsAnimation, StrategyAnimation, FrameCounter,
     StrategyOnDotsAnimation)
 

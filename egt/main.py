@@ -14,6 +14,7 @@ import numpy as np
 import random
 import argparse
 import logging
+import pickle
 import matplotlib.pyplot as plt
 logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(level=logging.DEBUG)
@@ -112,7 +113,7 @@ def main():
 
     # U:
     if args.n_strategies % 2 == 0:
-        logging.warning(
+        logging.info(
             f'Use {args.n_strategies+1} instead of {args.n_strategies} strategies; ' +
             'Unpair numbers make sense here for symmetry')
         args.n_strategies += 1
@@ -172,9 +173,8 @@ def main():
             plt.show()
 
             response = input('Save plot? [y/N]')
-            if response.lower().startswith('y'):
-                continue
-            else:
+            SAVE = response.lower().startswith('y')
+            if not SAVE:
                 break
         elif i==1:
             text = input('Name?')
@@ -192,10 +192,18 @@ def main():
     fig = ax.get_figure()
     # g = convergence_analysis.visualize(history, f)
     plt.show()
-    if 'text' in locals():
+    if SAVE:
         path = f'examples/{text}_{seed}_fvalue.png'
         fig.savefig(path)
         # g.savefig(path)
+
+    ###########################################################################
+    # 5. Save the data for later use
+    if SAVE:
+        path = f'examples/{text}_{seed}.pickle'
+        with open(path, 'wb') as file:
+            pickle.dump(history, file)
+        logging.info(f'Saved history to {path}')
 
 
 if __name__ == '__main__':
