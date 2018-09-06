@@ -45,24 +45,14 @@ def minimize(f, J_class, initial_population, U, parameters):
     # Define Magnet and Replicator Dynamics
     ###########################################################################
     def magnet(locations):
+        """Reweighting, so that "good" points are more important in comparison
+
+        w_i = e^{beta*(f(x_i) - min_k f(x_k))}
+        """
         # Reweighting
         f_vals = f(locations).flatten()
-        f_min_index = f_vals.argmin()
-        f_second_min_index = np.delete(f_vals, f_min_index).argmin()
-        if f_second_min_index >= f_min_index:
-            f_second_min_index += 1
-
-        f_value_matrix = np.tile(f_vals, (N, 1))
-        mins = np.array(
-            [f_vals[f_min_index]] * f_min_index +
-            [f_vals[f_second_min_index]] +
-            [f_vals[f_min_index]] * (N-f_min_index-1))
-
-        f_value_matrix = np.tile(f_vals, (N, 1))
-        f_value_matrix -= mins[:, None]
-        np.fill_diagonal(f_value_matrix, 0)
-        weights = np.exp(-beta*f_value_matrix)
-        np.fill_diagonal(weights, 0)
+        f_min = f_vals.min()
+        weights = np.exp(-beta*(f_vals - f_min))
         return weights
 
     def replicator_dynamics(current_population):
@@ -70,15 +60,14 @@ def minimize(f, J_class, initial_population, U, parameters):
         N, d = locations.shape
 
         tot_J = J_vectorized(locations)
-        tot_J[range(N), range(N)] = 0  # Don't compare points to themselves
 
         weights = magnet(locations)
 
         mean_outcomes = np.sum(tot_J * strategies[:, None, :], axis=2)
         delta = np.sum(
-            weights[:, :, None] * (
+            weights[None, :, None] * (
                 tot_J - mean_outcomes[:, :, None]),
-            axis=1) / np.sum(weights, axis=1)[:, None]
+            axis=1) / np.sum(weights)
 
         return delta
 
