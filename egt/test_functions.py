@@ -10,7 +10,9 @@ def ackley(x):
 
 
 def simple_nonconvex_function(x):
-    return (x**2) - 0.8 * np.cos(30*x) + 0.8
+    amplitude = 5
+    frequency = 10
+    return (x**2) - amplitude * np.cos(frequency*x) + amplitude
 
 
 def two_wells(x):

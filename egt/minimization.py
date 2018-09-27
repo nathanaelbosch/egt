@@ -33,6 +33,7 @@ def minimize(f, J_class, initial_population, U, parameters):
     max_iterations = parameters['max_iterations']
     s_rounds = parameters['s_rounds']
     normalize_delta = parameters['normalize_delta']
+    smooth_movement = parameters['smooth_movement']
 
     standing_index = np.where(np.isclose(U, 0))[0][0]
 
@@ -53,6 +54,7 @@ def minimize(f, J_class, initial_population, U, parameters):
         f_vals = f(locations).flatten()
         f_min = f_vals.min()
         weights = np.exp(-beta*(f_vals - f_min))
+        weights /= np.sum(weights)
         return weights
 
     def replicator_dynamics(current_population):
@@ -67,7 +69,7 @@ def minimize(f, J_class, initial_population, U, parameters):
         delta = np.sum(
             weights[None, :, None] * (
                 tot_J - mean_outcomes[:, :, None]),
-            axis=1) / np.sum(weights)
+            axis=1)
 
         return delta
 
@@ -80,46 +82,51 @@ def minimize(f, J_class, initial_population, U, parameters):
 
     logging.info('Start simulation')
     sim_bar = tqdm.trange(max_iterations)
-    for i in sim_bar:
-        # Strategy updates
-        for s in range(s_rounds):
-            # Formula: sigma = (1 + stepsize * gamma * delta) * sigma
+    try:
+        for i in sim_bar:
+            # Strategy updates
+            for s in range(s_rounds):
+                # Formula: sigma = (1 + stepsize * gamma * delta) * sigma
 
-            # All possible calls of J, in a single array, but without the diag
-            delta = replicator_dynamics((locations, strategies))
+                # All possible calls of J, in a single array, but without the diag
+                delta = replicator_dynamics((locations, strategies))
 
-            if normalize_delta:
-                delta = - delta / delta.min(axis=1)[:, None]
+                if normalize_delta:
+                    delta = - delta / delta.min(axis=1)[:, None]
 
-            strategies *= (1 + stepsize * gamma * delta)
-            # import pdb; pdb.set_trace()
+                strategies *= (1 + stepsize * gamma * delta)
+                # import pdb; pdb.set_trace()
 
-            prob_sums = strategies.sum(axis=1)
-            if np.any(prob_sums != 1) and np.all(np.isclose(prob_sums, 1)):
-                # Numerical problems, but otherwise should be fine - Reweight
-                strategies /= prob_sums[:, None]
+                prob_sums = strategies.sum(axis=1)
+                if np.any(prob_sums != 1) and np.all(np.isclose(prob_sums, 1)):
+                    # Numerical problems, but otherwise should be fine - Reweight
+                    strategies /= prob_sums[:, None]
 
-        # Location updates
-        for j in range(N):
-            locations[j] += strategies[j].flatten().dot(U)
-            # random_u_index = np.random.choice(
-            #     len(U), p=strategies[j].flatten())
-            # locations[j] += stepsize*U[random_u_index]
+            # Location updates
+            for j in range(N):
+                if smooth_movement:
+                    locations[j] += strategies[j].flatten().dot(U)
+                else:
+                    random_u_index = np.random.choice(
+                        len(U), p=strategies[j].flatten())
+                    locations[j] += stepsize*U[random_u_index]
 
-        history.append((locations.copy(), strategies.copy()))
+            history.append((locations.copy(), strategies.copy()))
 
-        # Break condition for early stopping
-        max_dist = (max(locations) - min(locations))[0]
-        max_staying_uncertainty = 1 - strategies[:, standing_index].min()
-        mean_value = np.mean(f(locations))
-        sim_bar.set_description(
-            ('[Simulation] max_dist={:.3f} ' +
-             'staying_uncertainty={:.2E} ' +
-             'mean_value={:.2f}').format(
-                max_dist, max_staying_uncertainty, mean_value))
-        if max_staying_uncertainty == 0.0:
-            logging.info('Early stopping! No point wants to move anymore')
-            break
+            # Break condition for early stopping
+            max_dist = (max(locations) - min(locations))[0]
+            max_staying_uncertainty = 1 - strategies[:, standing_index].min()
+            mean_value = np.mean(f(locations))
+            sim_bar.set_description(
+                ('[Simulation] max_dist={:.3f} ' +
+                 'max_uncert={:.2E} ' +
+                 'mean_value={:.2f}').format(
+                    max_dist, max_staying_uncertainty, mean_value))
+            if max_staying_uncertainty == 0.0:
+                logging.info('Early stopping! No point wants to move anymore')
+                break
+    except KeyboardInterrupt:
+        print('Breaking the simulation. If you really want to exit press it again')
 
     logging.info(f'Max distance at the end: {max_dist}')
     logging.info(f'Max "staying-uncertainty": {max_staying_uncertainty}')

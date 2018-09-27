@@ -59,6 +59,7 @@ class OriginalJ(J_template):
         walk_dirs = walk_dirs.reshape(N, N)
         variance = (np.abs(walk_dirs) ** self.alpha +
                     np.abs(f_diffs) ** self.alpha)
+        variance += 1e-16
         # variance = (np.abs(walk_dirs) ** self.alpha)
 
         # Make things stable for x=x2

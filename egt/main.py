@@ -10,6 +10,7 @@ Job:
     - Present results
     - Save if wanted
 """
+import datetime as dt
 import numpy as np
 import random
 import argparse
@@ -32,26 +33,23 @@ from egt.test_functions import *
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--save', action='store_true',
-        help='Save the animation')
+        '--minimizer', default='egt',
+        help='Choice of minimization technique: `egt` or `carillo`')
     parser.add_argument(
-        '--carillo', action='store_true',
-        help='Use the carillo minimization technique')
-    parser.add_argument(
-        '-s', '--seed', type=int,
+        '-s', '--seed', type=int, default=random.randint(0, 2**32-1),
         help='Random seed for numpy')
     parser.add_argument(
-        '-n', '--max-iterations', type=int,
+        '-M', '--max-iterations', type=int,
         help='Number of iterations to perform (max, might be less)')
     parser.add_argument(
         '--U-interval', type=float, default=(-1, 1), nargs=2,
         help='Min and max value for the U interval')
     parser.add_argument(
-        '--plot-range', type=float, default=(-10, 10), nargs=2,
-        help='Interval in which to plot the function')
-    parser.add_argument(
         '--n-strategies', type=int, default=200,
         help='Number of total strategies to use')
+    parser.add_argument(
+        '--plot-range', type=float, default=(-10, 10), nargs=2,
+        help='Interval in which to plot the function')
     parser.add_argument(
         '--s-rounds', type=int, default=1,
         help='Strategy update rounds per location update')
@@ -80,6 +78,9 @@ def parse_args():
         '--normalize-delta', action='store_true',
         help='aka "adaptive stepsize" - highly recommended!')
     parser.add_argument(
+        '--smooth-movement', action='store_true',
+        help='Move according to the exact ODE, not sampled')
+    parser.add_argument(
         '--my-j', action='store_true',
         help='Use my WIP J - default is the well-tested original J')
     parser.add_argument(
@@ -101,15 +102,12 @@ f = simple_nonconvex_function
 
 
 
-
-
 def main():
     ###########################################################################
     # 1. Setup
     args = parse_args()
-    seed = random.randint(0, 2**32-1) if not args.seed else args.seed
-    logging.info(f'Seed used for this simulation: {seed}')
-    np.random.seed(seed)
+    logging.info(f'Seed used for this simulation: {args.seed}')
+    np.random.seed(args.seed)
 
     # U:
     if args.n_strategies % 2 == 0:
@@ -123,8 +121,6 @@ def main():
         np.linspace(
             0, args.U_interval[1], args.n_strategies//2 + 1, endpoint=True))
     )[:, None]
-    # Array of shape #U^d
-    # Ud = np.stack(np.meshgrid(*([U]*d))).reshape((3, -1)).T
 
     # Sigma:
     if args.initial_strategy == 'uniform':
@@ -148,62 +144,73 @@ def main():
 
     ###########################################################################
     # 2. Run Minimize
-    if args.carillo:
-        history = carillo.minimize(f, population, vars(args))
-    else:
+    if args.minimizer == "egt":
         history = minimize(f, J_used, population, U, vars(args))
+    elif args.minimizer == "carillo":
+        history = carillo.minimize(f, population, vars(args))
+
+    ###########################################################################
+    # 3. Save Data
+    now = dt.datetime.now()
+    name = input(f'Filename prefix to save the data? Defaults to just "{now}"')
+    name = name+'_' if name is not None else name
+    filename = f'examples/{name}{dt.datetime.now()}'
+    data = {
+        'history': history,
+        'f': f,
+        'args': args,
+        'U': U,
+    }
+    path = filename+'.pickle'
+    with open(path, 'wb') as file:
+        pickle.dump(data, file)
+    logging.info(f'Saved data to {path}')
 
     ###########################################################################
     # 3. Visualize
+    SHOW = input('Show animation? [y/N]').lower().startswith('y')
     params_to_show = ['beta', 'gamma', 's_rounds', 'stepsize']
     # params_to_show = ['beta', 'gamma', 'stepsize']
     parameter_text = '\n'.join(
         [f'n_points: {N}'] +
         [f'{p}: {vars(args)[p]}'for p in params_to_show])
     plot_range = np.linspace(args.plot_range[0], args.plot_range[1], 1000)
-
-    # Need this weird construct
-    for i in range(2):
-        anim = vis.full_visualization(
+    def get_animation():
+        return vis.full_visualization(
             history, f, U,
             plot_range=plot_range,
             parameter_text=parameter_text,
             max_len=args.max_animation_seconds*60)
-        if i==0:
-            plt.show()
 
-            response = input('Save plot? [y/N]')
-            SAVE = response.lower().startswith('y')
-            if not SAVE:
-                break
-        elif i==1:
-            text = input('Name?')
-            logging.info('Saving animation, this might take a while')
-            # text = '_'.join([f'{p}{vars(args)[p]}'for p in params_to_show])
-            anim.save(
-                f'examples/{text}_{seed}.mp4',
-                fps=60)
+    anim = get_animation()
+
+    if SHOW:
+        plt.show()
+        anim = get_animation()
+    # 3.2. Analyze Convergence behaviour
+    if SHOW:
+        if not (f == simple_nonconvex_function):
+            return
+        ax = convergence_analysis.visualize(history, f)
+        fig = ax.get_figure()
+        # g = convergence_analysis.visualize(history, f)
+        plt.show()
+
 
     ###########################################################################
-    # 4. Analyze Convergence behaviour
-    if not (f == simple_nonconvex_function):
-        return
-    ax = convergence_analysis.visualize(history, f)
-    fig = ax.get_figure()
-    # g = convergence_analysis.visualize(history, f)
-    plt.show()
-    if SAVE:
-        path = f'examples/{text}_{seed}_fvalue.png'
+    # 3. Save Animation and figure
+    if SHOW and SAVE:
+        # text = input('Name?')
+        logging.info('Saving animation, this might take a while')
+        # text = '_'.join([f'{p}{vars(args)[p]}'for p in params_to_show])
+        # path = f'examples/{dt.datetime.now()}.mp4'
+        path = filename+'.mp4'
+        anim.save(path,
+                  fps=60)
+
+        path = filename+'_fvalue.png'
         fig.savefig(path)
         # g.savefig(path)
-
-    ###########################################################################
-    # 5. Save the data for later use
-    if SAVE:
-        path = f'examples/{text}_{seed}.pickle'
-        with open(path, 'wb') as file:
-            pickle.dump(history, file)
-        logging.info(f'Saved history to {path}')
 
 
 if __name__ == '__main__':
