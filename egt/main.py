@@ -209,7 +209,7 @@ def main():
     params_to_show = ['beta', 'gamma', 's_rounds', 'stepsize']
     # params_to_show = ['beta', 'gamma', 'stepsize']
     parameter_text = '\n'.join(
-        [f'n_points: {N}'] +
+        [f'n_points: {args.n_points}'] +
         [f'{p}: {vars(args)[p]}'for p in params_to_show])
     plot_range = np.linspace(args.plot_range[0], args.plot_range[1], 1000)
     def get_animation():
