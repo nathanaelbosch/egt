@@ -34,10 +34,11 @@ def minimize(f, J_class, initial_population, U, parameters):
     s_rounds = parameters['s_rounds']
     normalize_delta = parameters['normalize_delta']
     smooth_movement = parameters['smooth_movement']
+    epsilon = parameters['epsilon']
 
     standing_index = np.where(np.isclose(U, 0))[0][0]
 
-    J_vectorized = J_class.get(f, U)
+    J_vectorized = J_class.get(f, U, epsilon=epsilon)
 
     locations, strategies = initial_population
     N, d = locations.shape
@@ -55,6 +56,7 @@ def minimize(f, J_class, initial_population, U, parameters):
         f_min = f_vals.min()
         weights = np.exp(-beta*(f_vals - f_min))
         weights /= np.sum(weights)
+        # print(weights)
         return weights
 
     def replicator_dynamics(current_population):
@@ -117,16 +119,30 @@ def minimize(f, J_class, initial_population, U, parameters):
             max_dist = (max(locations) - min(locations))[0]
             max_staying_uncertainty = 1 - strategies[:, standing_index].min()
             mean_value = np.mean(f(locations))
+            min_location = np.min(locations)
+            max_location = np.max(locations)
             sim_bar.set_description(
                 ('[Simulation] max_dist={:.3f} ' +
                  'max_uncert={:.2E} ' +
+                 'min_loc={:.2f} ' +
+                 'max_loc={:.2f} ' +
                  'mean_value={:.2f}').format(
-                    max_dist, max_staying_uncertainty, mean_value))
-            if max_staying_uncertainty == 0.0:
+                    max_dist,
+                    max_staying_uncertainty,
+                    min_location,
+                    max_location,
+                    mean_value))
+            # if max_staying_uncertainty == 0.0:
+            if max_staying_uncertainty < 1e-8:   # Gotta go fast
                 logging.info('Early stopping! No point wants to move anymore')
                 break
+            if max_dist <= np.abs(U[standing_index+1])*2:
+                logging.info('Early stopping! Points are VERY close')
+                break
     except KeyboardInterrupt:
-        print('Breaking the simulation. If you really want to exit press it again')
+        print('Breaking the simulation. If you really want to exit press it again in the next 5 seconds')
+        import time
+        time.sleep(5)
 
     logging.info(f'Max distance at the end: {max_dist}')
     logging.info(f'Max "staying-uncertainty": {max_staying_uncertainty}')

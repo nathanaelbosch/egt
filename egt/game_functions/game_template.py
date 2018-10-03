@@ -8,7 +8,7 @@ class J_template(ABC):
     This class secures the namespace as there have been bugs before.
     Also implementing the functionality twice makes for easier testing.
     """
-    def __init__(self, f, U):
+    def __init__(self, f, U, *args, **kwargs):
         """Initialization
 
         f: function to minimize

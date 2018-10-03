@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 
 from .game_template import J_template
@@ -8,6 +10,8 @@ class OriginalJ(J_template):
     def __init__(self, *args, **kwargs):
         super(OriginalJ, self).__init__(*args, **kwargs)
         self.alpha = kwargs.get('alpha', 2)
+        self.epsilon = kwargs.get('epsilon', 2)
+        logging.info(f'J parameters: alpha={self.alpha} epsilon={self.epsilon}')
 
     def _naive(self, x, u, x2):
         if x==x2:
@@ -20,7 +24,7 @@ class OriginalJ(J_template):
             out = np.exp(
                 -((u - (max(0, np.tanh(3*(self.f(x) - self.f(x2)))) *
                         (x2 - x)))**2) /
-                (np.abs(x-x2) ** self.alpha))
+                (np.abs(x-x2) ** self.alpha) + self.epsilon)
 
         return out
 
@@ -51,22 +55,23 @@ class OriginalJ(J_template):
                      np.tile(locations[:, None, :], (1, N, 1)))
 
         walk_dirs_adj = f_diffs_tanh_positive[:, :, None] * walk_dirs
+        # walk_dirs_adj = np.clip(walk_dirs_adj, -1, 1)
 
         ##############################################################
         # Multi dimensionality does not yet work, starting from here #
         ##############################################################
         walk_dirs_adj = walk_dirs_adj.reshape(N, N)
         walk_dirs = walk_dirs.reshape(N, N)
-        variance = (np.abs(walk_dirs) ** self.alpha +
-                    np.abs(f_diffs) ** self.alpha)
-        variance += 1e-16
-        # variance = (np.abs(walk_dirs) ** self.alpha)
+        # variance = (np.abs(walk_dirs) ** self.alpha +
+        #             np.abs(f_diffs) ** self.alpha)
+        variance = (np.abs(walk_dirs) ** self.alpha)
+        variance += self.epsilon
 
         # Make things stable for x=x2
-        problems = np.array([
-            [np.all(locations[i] == locations[j]) for j in range(N)]
-            for i in range(N)])
-        variance[problems] = 1
+        # problems = np.array([
+        #     [np.all(locations[i] == locations[j]) for j in range(N)]
+        #     for i in range(N)])
+        # variance[problems] = 1
 
         upper_side = (self.U.flatten()[None, None, :] -
                       walk_dirs_adj[:, :, None]) ** 2
@@ -74,8 +79,8 @@ class OriginalJ(J_template):
         out = np.exp(-1 * upper_side / variance[:, :, None])
 
         # Set the "problems" to the values they should contain (by analysis of J)
-        out[problems] = 0
-        standing_index = np.where(self.U==0)[0][0]
-        out[problems, standing_index] = 1
+        # out[problems] = 0
+        # standing_index = np.where(self.U==0)[0][0]
+        # out[problems, standing_index] = 1
 
         return out

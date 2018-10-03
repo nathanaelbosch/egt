@@ -9,9 +9,12 @@ def ackley(x):
     return out
 
 
-def simple_nonconvex_function(x):
-    amplitude = 5
-    frequency = 10
+def double_ackley(x, offset=200):
+    out = (2 * ackley(x) + ackley(x-offset) - ackley(-offset))/2
+    return out
+
+
+def simple_nonconvex_function(x, amplitude=5, frequency=10):
     return (x**2) - amplitude * np.cos(frequency*x) + amplitude
 
 
@@ -23,6 +26,8 @@ def two_wells(x):
 def convex_hull(f, plot_range=np.arange(-100, 100, 0.001)):
     if f == simple_nonconvex_function:
         return lambda x: x**2
+    else:
+        raise Exception('This is a really bad idea')
 
     logging.info('Creating convex hull - can take a while')
     out_function = two_wells
@@ -74,4 +79,9 @@ def convex_hull(f, plot_range=np.arange(-100, 100, 0.001)):
 
 
 def easom(x):
-    return np.cos(x) * np.exp(-((x-np.pi)**2))
+    return np.cos(x) * np.exp(-((x-np.pi)**2)) + 1
+
+
+def rastrigin(x):
+    A = 10
+    return A + x**2 - A*np.cos(2*np.pi*x)

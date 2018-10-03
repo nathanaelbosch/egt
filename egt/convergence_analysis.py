@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from .test_functions import convex_hull, simple_nonconvex_function
+from .test_functions import simple_nonconvex_function, ackley
 from .visualisation import FIGSIZE
 
 
@@ -20,8 +20,8 @@ def max_distances(history, f):
 
 def visualize(history, f):
     data = {}
-    range = np.arange(-10, 10, 0.0001)
-    values = f(range)
+    plot_range = np.arange(-10, 10, 0.0001)
+    values = f(plot_range)
     min_val, min_loc = values.min(), values.argmin()
 
     location_hist, _ = zip(*history)
@@ -34,11 +34,28 @@ def visualize(history, f):
     mean_vals = f(locs).mean(axis=1) - min_val
     data['mean_values'] = mean_vals
 
-    if f == simple_nonconvex_function:
-        convex_f = convex_hull(
-            f, plot_range=np.arange(locs.min(), locs.max(), 0.01))
-        mean_vals_convex = convex_f(locs).mean(axis=1) - min_val
-        data['mean_values_convex'] = mean_vals_convex
+    # if f == ackley or f == simple_nonconvex_function:
+    #     if f == simple_nonconvex_function:
+    #         def convex_f(x):
+    #             return x**2
+    #         mean_vals_convex = convex_f(locs).mean(axis=1) - min_val
+    #         data['mean_values_convex'] = mean_vals_convex
+    #     elif f == ackley:
+    #         # Create convex hull on compact set
+    #         left_x, right_x = np.floor(locs.min()), np.ceil(locs.max())
+    #         left_x = min(-20, left_x)
+    #         right_x = max(20, right_x)
+    #         left_y, right_y = f(left_x), f(right_x)
+    #         min_y = f(0)
+
+    #         def convex_f(x):
+    #             return np.where(
+    #                 x > 0,
+    #                 x * (right_y / right_x) + min_y,
+    #                 x * (left_y / left_x) + min_y)
+    #     mean_vals_convex = convex_f(locs).mean(axis=1) - min_val
+    #     data['mean_values_convex'] = mean_vals_convex
+
     # max_distances = locs.max(axis=1) - locs.min(axis=1)
 
     fig = plt.figure(figsize=FIGSIZE)

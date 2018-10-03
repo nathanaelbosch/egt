@@ -11,14 +11,13 @@ Job:
     - Save if wanted
 """
 import datetime as dt
-import numpy as np
 import random
 import argparse
 import logging
-import pickle
-import matplotlib.pyplot as plt
 logging.basicConfig(level=logging.INFO)
-# logging.basicConfig(level=logging.DEBUG)
+
+import numpy as np
+import matplotlib.pyplot as plt
 
 import egt.visualisation as vis
 from egt.game_functions.original_J import OriginalJ
@@ -28,31 +27,37 @@ from egt.minimization import minimize
 import egt.carillo as carillo
 import egt.convergence_analysis as convergence_analysis
 from egt.test_functions import *
+from egt.tools import save_data
 
 
-def parse_args():
+def parse_args(*args, **kwargs):
     parser = argparse.ArgumentParser()
+    # General
     parser.add_argument(
         '--minimizer', default='egt',
         help='Choice of minimization technique: `egt` or `carillo`')
     parser.add_argument(
+        '--test-function', default='ackley',
+        help='Choice of test-function: `simple`, `ackley`, `double_ackley`')
+    parser.add_argument(
         '-s', '--seed', type=int, default=random.randint(0, 2**32-1),
         help='Random seed for numpy')
     parser.add_argument(
+        '--plot-range', type=float, default=(-10, 10), nargs=2,
+        help='Interval in which to plot the function')
+    parser.add_argument(
         '-M', '--max-iterations', type=int,
         help='Number of iterations to perform (max, might be less)')
+
+    # Strategies U
     parser.add_argument(
         '--U-interval', type=float, default=(-1, 1), nargs=2,
         help='Min and max value for the U interval')
     parser.add_argument(
         '--n-strategies', type=int, default=200,
         help='Number of total strategies to use')
-    parser.add_argument(
-        '--plot-range', type=float, default=(-10, 10), nargs=2,
-        help='Interval in which to plot the function')
-    parser.add_argument(
-        '--s-rounds', type=int, default=1,
-        help='Strategy update rounds per location update')
+
+    # Initial population
     parser.add_argument(
         '-N', '--n-points', type=int, default=10,
         help='Number of points to use')
@@ -60,46 +65,93 @@ def parse_args():
         '--point-interval', type=float, default=(-10, 10), nargs=2,
         help='Interval in which to uniformly put points')
     parser.add_argument(
-        '--beta', type=float, default=1000,
-        help='beta parameter to use for the magnet')
-    parser.add_argument(
-        '--alpha', type=float, default=2,
-        help='alpha parameter to use for the J')
-    parser.add_argument(
-        '--gamma', type=float, default=0.9,
-        help='Stepsize-multiplicator to use for the strategy update')
+        '--initial-strategy', type=str, default='uniform',
+        help='Initial strategy distribution for all points - default uniform')
+
+    # Simulation parameters
     parser.add_argument(
         '--stepsize', type=float, default=0.1,
         help='Stepsize - Influences both strategy and location update')
     parser.add_argument(
-        '--max-animation-seconds', type=int, default=10,
-        help='Maximum time of the resulting animation, in seconds')
+        '--beta', type=float, default=30,
+        help='beta parameter to use for the magnet')
+    parser.add_argument(
+        '--gamma', type=float, default=0.9,
+        help='Stepsize-multiplicator to use for the strategy update')
     parser.add_argument(
         '--normalize-delta', action='store_true',
         help='aka "adaptive stepsize" - highly recommended!')
     parser.add_argument(
-        '--smooth-movement', action='store_true',
-        help='Move according to the exact ODE, not sampled')
+        '--s-rounds', type=int, default=1,
+        help='Strategy update rounds per location update')
+
+    # J
+    parser.add_argument(
+        '--alpha', type=float, default=2,
+        help='alpha parameter to use for the J')
+    parser.add_argument(
+        '--epsilon', type=float, default=1e-4,
+        help='epsilon in J to assure Lipschitz continuity')
     parser.add_argument(
         '--my-j', action='store_true',
         help='Use my WIP J - default is the well-tested original J')
-    parser.add_argument(
-        '--initial-strategy', type=str, default='uniform',
-        help='Initial strategy distribution for all points - default uniform')
 
-    args = parser.parse_args()
+    # Misc
+    parser.add_argument(
+        '--max-animation-seconds', type=int, default=10,
+        help='Maximum time of the resulting animation, in seconds')
+    parser.add_argument(
+        '--save-prefix', type=str,
+        help='Prefix to use when saving the data to disk')
+    parser.add_argument(
+        '--smooth-movement', action='store_true',
+        help='Move according to the exact ODE, not sampled')
+
+    args = parser.parse_args(*args, **kwargs)
 
     assert args.gamma*args.stepsize <= 1, 'Gamma too large! Should be <= {}'.format(1/args.stepsize)
 
     return args
 
 
+funcs = {
+    'simple': simple_nonconvex_function,
+    'ackley': ackley,
+    'double_ackley': double_ackley,
+    'easom': easom,
+    'rastrigin': rastrigin,
+}
 
-f = two_wells
-f = simple_nonconvex_function
-# f = ackley
-# f = easom
 
+def make_strategies(n_U=100, U_max=1):
+    assert n_U//2 == n_U/2
+    k = np.arange(1, n_U//2+1, 1)
+    v = k * 2*np.sqrt(U_max)/n_U
+    # u = (v + (v ** np.log10(190)))/2
+    u = v**2
+    # u = v
+    logging.info(f'Minimum movement with current setup: {u[0]}')
+    u = np.concatenate((-u[::-1], [0], u))[:, None]
+    return u
+
+
+def make_initial_population(initial_strategy, point_interval, n_points, U):
+    if initial_strategy == 'uniform':
+        sigma = np.array([1]*len(U)) / len(U)
+    else:
+        with np.errstate(divide='ignore'):
+            sigma = np.exp(-1/(1-(U**2)))
+        sigma = sigma / np.sum(sigma)
+
+    # Initial population
+    points = np.random.uniform(
+        point_interval[0], point_interval[1], n_points)
+    N = len(points)
+    d = len(points[0]) if isinstance(points[0], tuple) else 1
+    locations = np.array(points).reshape(N, d)
+    strategies = np.tile(sigma.flatten(), (len(points), 1))
+    population = (locations, strategies)
+    return population
 
 
 def main():
@@ -109,37 +161,17 @@ def main():
     logging.info(f'Seed used for this simulation: {args.seed}')
     np.random.seed(args.seed)
 
+    # f:
+    f = funcs[args.test_function]
+
     # U:
-    if args.n_strategies % 2 == 0:
-        logging.info(
-            f'Use {args.n_strategies+1} instead of {args.n_strategies} strategies; ' +
-            'Unpair numbers make sense here for symmetry')
-        args.n_strategies += 1
-    U = np.concatenate((
-        np.linspace(
-            args.U_interval[0], 0, args.n_strategies//2, endpoint=False),
-        np.linspace(
-            0, args.U_interval[1], args.n_strategies//2 + 1, endpoint=True))
-    )[:, None]
+    U = make_strategies(args.n_strategies, args.U_interval[1])
 
-    # Sigma:
-    if args.initial_strategy == 'uniform':
-        sigma = np.array([1]*len(U)) / len(U)
-    else:
-        with np.errstate(divide='ignore'):
-            sigma = np.exp(-1/(1-(U**2)))
-        sigma = sigma / np.sum(sigma)
+    # Initial population:
+    population = make_initial_population(
+        args.initial_strategy, args.point_interval, args.n_points, U)
 
-    # Initial population
-    points = np.random.uniform(
-        args.point_interval[0], args.point_interval[1], args.n_points)
-    N = len(points)
-    d = len(points[0]) if isinstance(points[0], tuple) else 1
-    locations = np.array(points).reshape(N, d)
-    strategies = np.tile(sigma.flatten(), (len(points), 1))
-    population = (locations, strategies)
-
-    # J
+    # J:
     J_used = MyJ if args.my_j else OriginalJ
 
     ###########################################################################
@@ -152,8 +184,12 @@ def main():
     ###########################################################################
     # 3. Save Data
     now = dt.datetime.now()
-    name = input(f'Filename prefix to save the data? Defaults to just "{now}"')
-    name = name+'_' if name is not None else name
+    if args.save_prefix:
+        name = args.save_prefix
+    else:
+        name = input(f'Filename prefix to save the data? Defaults to just "{now}"')
+    if name != '':
+        name = name+'_'
     filename = f'examples/{name}{dt.datetime.now()}'
     data = {
         'history': history,
@@ -162,8 +198,7 @@ def main():
         'U': U,
     }
     path = filename+'.pickle'
-    with open(path, 'wb') as file:
-        pickle.dump(data, file)
+    save_data(data, path)
     logging.info(f'Saved data to {path}')
 
     ###########################################################################
@@ -182,24 +217,19 @@ def main():
             parameter_text=parameter_text,
             max_len=args.max_animation_seconds*60)
 
-    anim = get_animation()
-
     if SHOW:
-        plt.show()
+        # Show animation
         anim = get_animation()
-    # 3.2. Analyze Convergence behaviour
-    if SHOW:
-        if not (f == simple_nonconvex_function):
-            return
+        plt.show()
+
+        # Show convergence
         ax = convergence_analysis.visualize(history, f)
         fig = ax.get_figure()
         # g = convergence_analysis.visualize(history, f)
         plt.show()
 
-
-    ###########################################################################
-    # 3. Save Animation and figure
-    if SHOW and SAVE:
+        # Saving animation
+        anim = get_animation()
         # text = input('Name?')
         logging.info('Saving animation, this might take a while')
         # text = '_'.join([f'{p}{vars(args)[p]}'for p in params_to_show])
@@ -208,6 +238,7 @@ def main():
         anim.save(path,
                   fps=60)
 
+        # Save convergence
         path = filename+'_fvalue.png'
         fig.savefig(path)
         # g.savefig(path)
