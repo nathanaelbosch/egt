@@ -31,7 +31,7 @@ def visualize(history, f):
     locs = np.array(location_hist).reshape(len(location_hist), -1)
 
     # Norm the values to have value 0 at the min
-    mean_vals = f(locs).mean(axis=1) - min_val
+    mean_vals = f(locs).mean(axis=1)
     data['mean_values'] = mean_vals
 
     # if f == ackley or f == simple_nonconvex_function:

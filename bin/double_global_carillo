@@ -1,0 +1,14 @@
+#!/usr/bin/bash
+
+python -m egt.main \
+       --minimizer carillo \
+       --test-function double_global_ackley \
+       --max-iterations 1000000 \
+       --beta 30 \
+       --gamma 6 \
+       --stepsize 2.5e-3 \
+       --n-points 10000 \
+       --plot-range -100 100 \
+       --point-interval -150 150 \
+       --max-animation-seconds 30 \
+       --save-prefix double_global_carrillo \

@@ -120,6 +120,8 @@ funcs = {
     'double_ackley': double_ackley,
     'easom': easom,
     'rastrigin': rastrigin,
+    'cosine': cosine,
+    'double_global_ackley': double_global_ackley,
 }
 
 
