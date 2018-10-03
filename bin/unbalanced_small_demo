@@ -1,19 +1,21 @@
 #!/usr/bin/bash
 
 python -m egt.main \
-       --test-function eggholder \
+       --test-function simple \
        --max-iterations 1000000 \
        --gamma 0.05 \
-       --stepsize 0.5 \
+       --stepsize 0.05 \
        --n-points 20 \
-       --plot-range -1000 1000 \
-       --point-interval -1000 1000 \
+       --plot-range -10 10 \
+       --point-interval 5 10 \
        --initial-strategy standard \
-       --max-animation-seconds 10 \
+       --s-rounds 1 \
+       --max-animation-seconds 60 \
        --epsilon 1e-4 \
        --normalize-delta \
        --U-interval -1 1 \
        --beta 30 \
-       --n-strategies 40 \
+       --save-prefix unbalanced_small_demo \
        # --smooth-movement \
        # --my-j \
+       # --beta 1000 \ is default

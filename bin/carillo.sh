@@ -2,13 +2,13 @@
 
 # Worked well for some carillo simulations
 python -m egt.main \
-    --carillo \
-    --max-iterations 10000 \
-    --beta 100 \
-    --gamma 6 \
-    --stepsize 2.5e-3 \
-    --n-points 5000 \
-    --plot-range -10 10 \
-    --point-interval 5 100 \
-    --max-animation-seconds 30 \
-    --max-animation-seconds 10
+       --minimizer carillo \
+       --test-function double_ackley \
+       --max-iterations 1000000 \
+       --beta 30 \
+       --gamma 6 \
+       --stepsize 2.5e-3 \
+       --n-points 100000 \
+       --plot-range -1000 10000 \
+       --point-interval 9999 10000 \
+       --max-animation-seconds 30 \

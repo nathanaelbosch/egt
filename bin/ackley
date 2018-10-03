@@ -1,0 +1,21 @@
+#!/usr/bin/bash
+
+python -m egt.main \
+    --test-function ackley \
+    --max-iterations 1000000 \
+    --gamma 0.05 \
+    --stepsize 0.5 \
+    --n-points 50 \
+    --plot-range -100 100 \
+    --point-interval -100 100 \
+    --initial-strategy standard \
+    --s-rounds 1 \
+    --max-animation-seconds 60 \
+    --epsilon 1e-4 \
+    --normalize-delta \
+    --U-interval -10 10 \
+    --beta 30 \
+    --save-prefix ackley \
+    # --n-strategies 300 \
+    # --smooth-movement \
+    # --my-j \
