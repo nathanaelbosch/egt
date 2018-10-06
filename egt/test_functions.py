@@ -14,6 +14,11 @@ def double_ackley(x, offset=200):
     return out
 
 
+def double_global_ackley(x, offset=40):
+    out = ackley(x+(offset/2)) + ackley(x-(offset/2)) - ackley(-(offset/2))
+    return out
+
+
 def simple_nonconvex_function(x, amplitude=5, frequency=10):
     return (x**2) - amplitude * np.cos(frequency*x) + amplitude
 
@@ -21,6 +26,10 @@ def simple_nonconvex_function(x, amplitude=5, frequency=10):
 def two_wells(x):
     return (((x-2)**2 * (x+2)**2 + 10*x) / (x**2 + 1) +
             0.3 * (np.abs(x)+5) * np.sin(10*x))
+
+
+def cosine(x):
+    return np.cos(2*np.pi*x) + 1
 
 
 def convex_hull(f, plot_range=np.arange(-100, 100, 0.001)):

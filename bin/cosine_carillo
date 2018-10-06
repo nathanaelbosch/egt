@@ -1,0 +1,14 @@
+#!/usr/bin/bash
+
+# Worked well for some carillo simulations
+python -m egt.main \
+       --minimizer carillo \
+       --test-function cosine \
+       --max-iterations 1000000 \
+       --beta 30 \
+       --gamma 6 \
+       --stepsize 2.5e-3 \
+       --n-points 10000 \
+       --plot-range -100 100 \
+       --point-interval -5 5 \
+       --max-animation-seconds 30 \
