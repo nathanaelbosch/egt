@@ -126,10 +126,16 @@ funcs = {
 def make_strategies(n_U=100, U_max=1):
     assert n_U//2 == n_U/2
     k = np.arange(1, n_U//2+1, 1)
+
+    # Variant 1: U^2
     v = k * 2*np.sqrt(U_max)/n_U
-    # u = (v + (v ** np.log10(190)))/2
     u = v**2
+
+    # Variant 2: More or less U + U^2
+    # u = (v + (v ** np.log10(190)))/2
     # u = v
+
+    logging.info(f'n_U={n_U}, U_max={U_max}')
     logging.info(f'Minimum movement with current setup: {u[0]}')
     u = np.concatenate((-u[::-1], [0], u))[:, None]
     return u
