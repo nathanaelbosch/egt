@@ -56,7 +56,7 @@ def minimize(f, J_class, initial_population, U, parameters):
         f_min = f_vals.min()
         weights = np.exp(-beta*(f_vals - f_min))
         weights /= np.sum(weights)
-        # print(weights)
+        logging.debug(np.sort(weights))
         return weights
 
     def replicator_dynamics(current_population):
@@ -113,7 +113,8 @@ def minimize(f, J_class, initial_population, U, parameters):
                         len(U), p=strategies[j].flatten())
                     locations[j] += stepsize*U[random_u_index]
 
-            history.append((locations.copy(), strategies.copy()))
+            if i % 10 == 9:
+                history.append((locations.copy(), strategies.copy()))
 
             # Break condition for early stopping
             max_dist = (max(locations) - min(locations))[0]
@@ -136,7 +137,7 @@ def minimize(f, J_class, initial_population, U, parameters):
             if max_staying_uncertainty < 1e-8:   # Gotta go fast
                 logging.info('Early stopping! No point wants to move anymore')
                 break
-            if max_dist <= np.abs(U[standing_index+1])*2:
+            if max_dist <= np.abs(U[standing_index+1]):
                 logging.info('Early stopping! Points are VERY close')
                 break
     except KeyboardInterrupt:

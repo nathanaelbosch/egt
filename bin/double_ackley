@@ -1,21 +1,19 @@
 #!/usr/bin/bash
 
 python -m egt.main \
-    --test-function double_ackley \
-    --max-iterations 1000000 \
-    --gamma 0.05 \
-    --stepsize 0.5 \
-    --n-points 50 \
-    --plot-range -50 500 \
-    --point-interval 300 500 \
-    --initial-strategy standard \
-    --s-rounds 1 \
-    --max-animation-seconds 60 \
-    --epsilon 1e-4 \
-    --normalize-delta \
-    --U-interval -10 10 \
-    --beta 30 \
-    --save-prefix double_ackley \
-    # --n-strategies 300 \
-    # --smooth-movement \
-    # --my-j \
+       --test-function double_ackley \
+       --stepsize 0.5 \
+       --n-points 50 \
+       --plot-range -50 500 \
+       --point-interval 300 500 \
+       --max-animation-seconds 60 \
+       --U-max 100 \
+       --save-prefix double_ackley \
+       # --initial-strategy standard \
+       # --max-iterations 1000000 \
+       # --normalize-delta \
+       # --epsilon 1e-4 \
+       # --U-min 5e-3 \
+       # --n-strategies 50 \
+       # --beta 1e6 \
+       # --gamma 0.05 \

@@ -4,7 +4,7 @@
 python -m egt.main \
        --minimizer carillo \
        --test-function cosine \
-       --max-iterations 1000000 \
+       --max-iterations 1000 \
        --beta 30 \
        --gamma 6 \
        --stepsize 2.5e-3 \
@@ -12,3 +12,4 @@ python -m egt.main \
        --plot-range -100 100 \
        --point-interval -5 5 \
        --max-animation-seconds 30 \
+       --save-prefix cosine_carillo \

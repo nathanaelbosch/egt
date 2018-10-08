@@ -5,11 +5,16 @@ import numpy as np
 from .game_template import J_template
 
 
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+
 class OriginalJ(J_template):
     """Original J - As described by Massimo"""
     def __init__(self, *args, **kwargs):
         super(OriginalJ, self).__init__(*args, **kwargs)
         self.alpha = kwargs.get('alpha', 2)
+        self.b = kwargs.get('b', 100)
         self.epsilon = kwargs.get('epsilon', 2)
         logging.info(f'J parameters: alpha={self.alpha} epsilon={self.epsilon}')
 
@@ -64,7 +69,8 @@ class OriginalJ(J_template):
         walk_dirs = walk_dirs.reshape(N, N)
         # variance = (np.abs(walk_dirs) ** self.alpha +
         #             np.abs(f_diffs) ** self.alpha)
-        variance = (np.abs(walk_dirs) ** self.alpha)
+        # variance = 2 * ((np.abs(walk_dirs) + self.epsilon) ** self.alpha)
+        variance = 2 * (np.abs(walk_dirs) ** self.alpha)
         variance += self.epsilon
 
         # Make things stable for x=x2

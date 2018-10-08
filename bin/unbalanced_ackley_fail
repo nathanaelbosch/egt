@@ -4,11 +4,11 @@ python -m egt.main \
        --test-function ackley \
        --stepsize 0.5 \
        --n-points 100 \
-       --plot-range -50 500 \
-       --point-interval 200 500 \
+       --plot-range -100 5000 \
+       --point-interval 1000 4000 \
        --max-animation-seconds 60 \
        --U-max 100 \
-       --save-prefix unbalanced_ackley \
+       --save-prefix unbalanced_ackley_fail \
        # --initial-strategy standard \
        # --max-iterations 1000000 \
        # --normalize-delta \

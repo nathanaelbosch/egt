@@ -46,15 +46,18 @@ def parse_args(*args, **kwargs):
         '--plot-range', type=float, default=(-10, 10), nargs=2,
         help='Interval in which to plot the function')
     parser.add_argument(
-        '-M', '--max-iterations', type=int,
+        '-M', '--max-iterations', type=int, default=1000000,
         help='Number of iterations to perform (max, might be less)')
 
     # Strategies U
     parser.add_argument(
-        '--U-interval', type=float, default=(-1, 1), nargs=2,
-        help='Min and max value for the U interval')
+        '--U-max', type=float, default=1,
+        help='Max movement; U will be chosen symmetric around 0')
     parser.add_argument(
-        '--n-strategies', type=int, default=200,
+        '--U-min', type=float, default=5e-3,
+        help='Min movement')
+    parser.add_argument(
+        '--n-strategies', type=int, default=50,
         help='Number of total strategies to use')
 
     # Initial population
@@ -65,7 +68,7 @@ def parse_args(*args, **kwargs):
         '--point-interval', type=float, default=(-10, 10), nargs=2,
         help='Interval in which to uniformly put points')
     parser.add_argument(
-        '--initial-strategy', type=str, default='uniform',
+        '--initial-strategy', type=str, default='standard',
         help='Initial strategy distribution for all points - default uniform')
 
     # Simulation parameters
@@ -73,13 +76,13 @@ def parse_args(*args, **kwargs):
         '--stepsize', type=float, default=0.1,
         help='Stepsize - Influences both strategy and location update')
     parser.add_argument(
-        '--beta', type=float, default=30,
+        '--beta', type=float, default=1e4,
         help='beta parameter to use for the magnet')
     parser.add_argument(
-        '--gamma', type=float, default=0.9,
+        '--gamma', type=float, default=0.05,
         help='Stepsize-multiplicator to use for the strategy update')
     parser.add_argument(
-        '--normalize-delta', action='store_true',
+        '--normalize-delta', type=bool, default=True,
         help='aka "adaptive stepsize" - highly recommended!')
     parser.add_argument(
         '--s-rounds', type=int, default=1,
@@ -125,21 +128,31 @@ funcs = {
 }
 
 
-def make_strategies(n_U=100, U_max=1):
+def make_strategies(n_U=100, U_max=1, U_min=1e-2):
     assert n_U//2 == n_U/2
-    k = np.arange(1, n_U//2+1, 1)
+    # v_min, v_max = np.log(U_min+1), np.log(U_max+1)
+    # v = np.arange(v_min, v_max+v_min, v_min)
+    # u = np.exp(v) - 1
 
     # Variant 1: U^2
-    v = k * 2*np.sqrt(U_max)/n_U
+    v = np.linspace(np.sqrt(U_min), np.sqrt(U_max), n_U//2)
     u = v**2
 
     # Variant 2: More or less U + U^2
-    # u = (v + (v ** np.log10(190)))/2
-    # u = v
+    # v = np.linspace(
+    #     (-1+np.sqrt(1+8*U_min))/2,
+    #     (-1+np.sqrt(1+8*U_max))/2,
+    #     n_U//2)
+    # u = (v + (v ** 2))/2
+
+    # Variant 3: Linear
+    # u = np.linspace(U_min, U_max, n_U//2+1)
 
     logging.info(f'n_U={n_U}, U_max={U_max}')
     logging.info(f'Minimum movement with current setup: {u[0]}')
+    logging.info(f'Maximum movement with current setup: {u[-1]}')
     u = np.concatenate((-u[::-1], [0], u))[:, None]
+    logging.info(f'Total number of strategies: {len(u)}')
     return u
 
 
@@ -173,7 +186,7 @@ def main():
     f = funcs[args.test_function]
 
     # U:
-    U = make_strategies(args.n_strategies, args.U_interval[1])
+    U = make_strategies(args.n_strategies, args.U_max, args.U_min)
 
     # Initial population:
     population = make_initial_population(

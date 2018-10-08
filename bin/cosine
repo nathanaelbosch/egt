@@ -2,19 +2,18 @@
 
 python -m egt.main \
        --test-function cosine \
-       --max-iterations 1000000 \
-       --gamma 0.05 \
        --stepsize 0.5 \
-       --n-points 20 \
+       --n-points 50 \
        --plot-range -20 20 \
-       --point-interval -5 5 \
-       --initial-strategy standard \
+       --point-interval -20 20 \
        --max-animation-seconds 10 \
-       --epsilon 1e-4 \
-       --normalize-delta \
-       --U-interval -1 1 \
-       --beta 30 \
-       --n-strategies 40 \
+       --U-max 1 \
        --save-prefix cosine \
-       # --smooth-movement \
-       # --my-j \
+       # --initial-strategy standard \
+       # --max-iterations 1000000 \
+       # --normalize-delta \
+       # --epsilon 1e-4 \
+       # --U-min 5e-3 \
+       # --n-strategies 50 \
+       # --beta 1e6 \
+       # --gamma 0.05 \

@@ -12,7 +12,8 @@ python -m egt.main \
        --max-animation-seconds 10 \
        --epsilon 1e-4 \
        --normalize-delta \
-       --U-interval -10 10 \
-       --beta 30 \
-       --n-strategies 50 \
+       --U-max 100 \
+       --U-min 5e-3 \
+       --n-strategies 40 \
+       --beta 100 \
        --save-prefix double_global \

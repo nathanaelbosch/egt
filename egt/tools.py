@@ -3,7 +3,7 @@ import pickle
 
 def save_data(data, path, hist_freq=10):
     data['history_frequency'] = hist_freq
-    data['history'] = data['history'][::hist_freq]
+    data['history'] = data['history'][::(hist_freq//10)]
     with open(path, 'wb') as file:
         pickle.dump(data, file)
 

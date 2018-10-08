@@ -3,12 +3,13 @@
 python -m egt.main \
        --test-function simple \
        --stepsize 0.05 \
+       --gamma 10 \
        --n-points 20 \
        --plot-range -10 10 \
        --point-interval 5 10 \
        --max-animation-seconds 60 \
        --U-max 1 \
-       --save-prefix unbalanced_small_demo \
+       --save-prefix unbalanced_small_demo_fail \
        # --initial-strategy standard \
        # --max-iterations 1000000 \
        # --normalize-delta \
