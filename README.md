@@ -6,7 +6,9 @@ Two notable ressources are the papers ["Spatially Inhomogeneous Evolutionary Gam
 ## Usage
 In order to provide multiple examples which were also used in the thesis, I provide the scripts contained in `bin/` which start the algorithm with specific parameters.
 For example:
-```./bin/small_demo```
+```bash
+./bin/small_demo
+```
 
 <!-- ## Testing
 [pytest](https://docs.pytest.org/en/latest/) is a nice tool! Use it with:
